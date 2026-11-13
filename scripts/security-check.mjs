@@ -14,12 +14,13 @@ async function readProjectFile(relativePath) {
   return readFile(path.join(projectRoot, relativePath), "utf8");
 }
 
-const [vercelText, gitignore, packageText, serverText, configText] = await Promise.all([
+const [vercelText, gitignore, packageText, serverText, configText, securityEventsText] = await Promise.all([
   readProjectFile("vercel.json"),
   readProjectFile(".gitignore"),
   readProjectFile("package.json"),
   readProjectFile("server.mjs"),
-  readProjectFile("src/backend/config.mjs")
+  readProjectFile("src/backend/config.mjs"),
+  readProjectFile("src/backend/security-events.mjs")
 ]);
 
 let vercel;
@@ -60,8 +61,13 @@ for (const requiredSourceMarker of [
   "Request body is too large",
   "enforceMutationOrigin",
   "Strict-Transport-Security",
-  "X-Request-ID"
+  "X-Request-ID",
+  "runtimeSecurity"
 ]) requireCondition(serverText.includes(requiredSourceMarker), `Server hardening marker is missing: ${requiredSourceMarker}`);
+
+for (const requiredTelemetryMarker of ["SecurityEventLogger", "MAX_BUFFERED_EVENTS", "MAX_SNAPSHOT_SIZE", "new URL"]) {
+  requireCondition(securityEventsText.includes(requiredTelemetryMarker) || serverText.includes(requiredTelemetryMarker), `Security telemetry marker is missing: ${requiredTelemetryMarker}`);
+}
 
 requireCondition(configText.includes("realMoneyEnabled: asBoolean(env.REAL_MONEY_ENABLED, false)"), "Real-money configuration must default to false");
 

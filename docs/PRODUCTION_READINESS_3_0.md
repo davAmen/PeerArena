@@ -21,6 +21,7 @@
 - [x] Server-only Supabase challenge repository for public reads with explicit public-state filters and no demo fallback.
 - [x] Vercel static build configuration, security headers and CI workflow.
 - [x] Hardened HTTP baseline, production Origin checks, request correlation IDs, bounded timeouts and repeatable security/dependency checks.
+- [x] Redacted, bounded runtime security-event telemetry surfaced through the protected admin security view.
 - [x] Automated lifecycle, settlement, ledger, provider and activation-gate tests.
 
 ## Blocked pending external access or approval

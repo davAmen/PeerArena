@@ -53,6 +53,7 @@ The service modules in `src/backend/` define the replacement boundary:
 - `catalogue.mjs` defines public Supabase REST reads for enabled sports, sporting events, live events and prediction markets.
 - `challenges.mjs` defines the server-only Supabase public challenge read boundary and keeps challenge writes blocked until a transactional procedure exists.
 - `profiles.mjs` defines the server-only Supabase REST repository and allowlisted profile patch validation.
+- `security-events.mjs` defines bounded, redacted runtime security telemetry; it never stores request bodies, credentials or query strings.
 - `ledger.mjs` represents amounts as integer minor units.
 - `payments.mjs` defines the provider interface and a working mock provider.
 - `settlement.mjs` calculates a deterministic shared-pool distribution.

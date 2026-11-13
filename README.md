@@ -36,7 +36,7 @@ The admin route is a demonstration control surface only; it is not an authentica
 | --- | --- |
 | `server.mjs` | Node HTTP server, static hosting and demo API routes |
 | `src/demo-engine.mjs` | Challenge lifecycle, synthetic ledger and settlement rules |
-| `src/backend/` | Exact-unit ledger, settlement, Supabase Auth/session, authorization, admin/catalogue/profile/challenge repositories, payment-provider boundaries, runtime gate and API contract modules |
+| `src/backend/` | Exact-unit ledger, settlement, Supabase Auth/session, authorization, admin/catalogue/profile/challenge repositories, redacted security telemetry, payment-provider boundaries, runtime gate and API contract modules |
 | `dist/index.html` | Demo shell |
 | `dist/app.js` | Responsive single-page frontend |
 | `dist/styles.css` | Dark, responsive product UI |

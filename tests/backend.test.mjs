@@ -7,6 +7,7 @@ import {
   SupabaseAdminRepository,
   createAdminRepositoryFromEnv
 } from "../src/backend/admin.mjs";
+import { SecurityEventLogger } from "../src/backend/security-events.mjs";
 import {
   assertBalanced,
   calculateSharedPoolPayout,
@@ -595,4 +596,27 @@ test("admin repository factory fails closed without server persistence credentia
   }, async () => new Response(null, { status: 200, headers: { "Content-Range": "0-0/0" } }));
   assert.equal(configured.getCapabilities().configured, true);
   assert.equal(configured.getCapabilities().keyType, "secret");
+});
+
+test("security event logger redacts paths, bounds memory and preserves safe summaries", () => {
+  const emitted = [];
+  const logger = new SecurityEventLogger({ maxEvents: 2, now: () => Date.parse("2026-11-13T00:00:00.000Z"), onEvent: (event) => emitted.push(event) });
+  logger.record("csrf origin rejected", {
+    requestId: "request-1\nsecret",
+    method: "POST",
+    path: "/api/challenges?token=should-not-be-stored",
+    status: 403,
+    code: "CSRF_ORIGIN_REJECTED"
+  });
+  logger.record("RATE_LIMITED", { method: "GET", path: "/api/health", status: 429, code: "RATE_LIMITED" });
+  logger.record("AUTH_REQUIRED", { method: "GET", path: "/api/admin/users", status: 401, code: "AUTH_REQUIRED" });
+
+  assert.equal(emitted.length, 3);
+  assert.equal(logger.snapshot().length, 2);
+  assert.equal(logger.snapshot()[0].path, "/api/admin/users");
+  assert.equal(logger.snapshot()[1].path, "/api/health");
+  assert.equal(logger.summary().bufferedEvents, 2);
+  assert.deepEqual(logger.summary().byType, { AUTH_REQUIRED: 1, RATE_LIMITED: 1 });
+  assert.equal(logger.snapshot()[1].requestId, undefined);
+  assert.equal(logger.snapshot()[1].code, "RATE_LIMITED");
 });

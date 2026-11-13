@@ -24,6 +24,7 @@ import { ChallengeRepositoryError, createChallengeRepositoryFromEnv } from "./sr
 import { readRuntimeConfig } from "./src/backend/config.mjs";
 import { ProfileRepositoryError, createProfileRepositoryFromEnv } from "./src/backend/profiles.mjs";
 import { SlidingWindowRateLimiter, requestAddress } from "./src/backend/rate-limit.mjs";
+import { SecurityEventLogger } from "./src/backend/security-events.mjs";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const distRoot = path.join(projectRoot, "dist");
@@ -36,6 +37,9 @@ const challengeRepository = createChallengeRepositoryFromEnv();
 const profileRepository = createProfileRepositoryFromEnv();
 const apiRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 120 });
 const mutationRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 30 });
+const securityEvents = new SecurityEventLogger({
+  onEvent: (event) => console.warn(JSON.stringify({ securityEvent: event }))
+});
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -165,6 +169,17 @@ function enforceMutationOrigin(request) {
   if (origin !== allowedOrigin) throw requestSecurityError("Request origin is not allowed.", "CSRF_ORIGIN_REJECTED", 403);
 }
 
+function recordSecurityFailure(request, response, url, error) {
+  const code = typeof error?.code === "string" ? error.code : error?.status >= 500 ? "REQUEST_FAILURE" : undefined;
+  if (!code) return;
+  securityEvents.record(code, {
+    requestId: response.peerArenaRequestId,
+    method: request.method,
+    path: url.pathname,
+    status: Number.isInteger(error?.status) ? error.status : 500
+  });
+}
+
 function challengeOperationBlocked(response, operation) {
   return sendJson(response, 503, {
     error: `${operation} requires a transactional server procedure and is not enabled yet.`,
@@ -211,6 +226,12 @@ function applyRateLimit(request, response, url) {
   const limiter = ["POST", "PATCH", "PUT", "DELETE"].includes(request.method) ? mutationRateLimiter : apiRateLimiter;
   const decision = limiter.consume(`${requestAddress(request)}:${request.method}:${url.pathname}`);
   if (decision.allowed) return true;
+  securityEvents.record("RATE_LIMITED", {
+    requestId: response.peerArenaRequestId,
+    method: request.method,
+    path: url.pathname,
+    status: 429
+  });
   response.writeHead(429, securityHeaders({
     "Content-Type": "application/json; charset=utf-8",
     "Retry-After": String(decision.retryAfterSeconds),
@@ -315,8 +336,8 @@ async function handleApi(request, response, url) {
       return sendJson(response, 200, { settlements: state.challenges.filter((challenge) => challenge.settlement).map((challenge) => ({ challengeId: challenge.id, ...challenge.settlement })) });
     }
     if (request.method === "GET" && url.pathname === "/api/admin/security") {
-      if (productionAuthEnabled()) return sendJson(response, 200, await adminRepository.getSecurity());
-      return sendJson(response, 200, { realMoneyGate: "BLOCKED", authentication: productionAuthEnabled() ? "SUPABASE_BEARER_ADMIN" : "DEMO_SESSION_ONLY", suspiciousActivity: [], providerAnomalies: [] });
+      if (productionAuthEnabled()) return sendJson(response, 200, { ...(await adminRepository.getSecurity()), runtimeSecurity: securityEvents.summary() });
+      return sendJson(response, 200, { realMoneyGate: "BLOCKED", authentication: "DEMO_SESSION_ONLY", suspiciousActivity: [], providerAnomalies: [], runtimeSecurity: securityEvents.summary() });
     }
     if (request.method === "GET" && url.pathname === "/api/auth/session") {
       if (productionAuthEnabled()) {
@@ -504,6 +525,7 @@ async function handleApi(request, response, url) {
 
     return sendJson(response, 404, { error: "API route not found." });
   } catch (error) {
+    recordSecurityFailure(request, response, url, error);
     return sendError(response, 400, error);
   }
 }

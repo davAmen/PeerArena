@@ -7,6 +7,7 @@
 - Production browser mutations reject an untrusted `Origin` and fail closed when `NEXT_PUBLIC_APP_URL` is missing or invalid.
 - HTTP header size, request timeout, header timeout, keep-alive timeout and JSON body size are bounded.
 - 5xx responses use a generic message unless the error code is an explicitly safe configuration/boundary code; request IDs remain available for investigation.
+- Runtime security events are normalized, redacted to pathname/method/status/code, bounded to an in-process ring buffer and exposed only through the protected admin security view. Query strings, bodies, authorization headers, IP addresses and provider payloads are not stored.
 - `npm run security:check` verifies headers, CSP directives, secret-file hygiene, default-deny real-money configuration and server hardening markers.
 - CI runs the baseline and dependency audit on pushes and pull requests. A scheduled GitHub workflow repeats both checks every six hours after the repository is connected to GitHub.
 
