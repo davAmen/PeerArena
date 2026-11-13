@@ -17,10 +17,11 @@ This is the durable project record for security, persistence, verification and r
 | 2026-11-13 | `2711bc5` | Added read-only durable admin reporting. | No admin financial or challenge mutation. |
 | 2026-11-13 | `3b6cdc3` | Hardened HTTP controls. | Request IDs, headers, origin checks, bounded timeouts, generic 5xx errors and scheduled security checks. |
 | 2026-11-13 | `0cd3f5b` | Added bounded redacted runtime security telemetry. | 36 tests, security baseline, build and dependency audit passed; no bodies, credentials, query strings or IPs are retained. |
+| 2026-11-13 | `78be3a2` | Added the first owned-PostgreSQL procedure boundary. | Narrow idempotent challenge creation with actor, market, self-exclusion, rule, expiry and audit checks; 39 tests pass. |
 
 ## Current database sovereignty milestone
 
-Committed as `f13e6c7`.
+Committed as `f13e6c7`; procedure boundary added in `78be3a2`.
 
 The production database target is now explicitly self-hosted PostgreSQL operated on a private, owner-controlled network. The application accepts only `owned-postgres` or `disabled` as database modes. Production readiness requires an exact host allowlist and `verify-full` TLS. The demo remains in-memory with synthetic, non-redeemable balances.
 
