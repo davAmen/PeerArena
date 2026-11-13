@@ -10,12 +10,14 @@
 - [x] Idempotent mock collection and payout behavior with provider capability reporting.
 - [x] SeevPlus and Paystack fail-closed provider boundaries; no unverified network call.
 - [x] Default-deny real-money activation gate.
+- [x] Local API sliding-window rate limiting with explicit `429` responses.
 - [x] Vercel static build configuration, security headers and CI workflow.
 - [x] Automated lifecycle, settlement, ledger, provider and activation-gate tests.
 
 ## Blocked pending external access or approval
 
 - [ ] Next.js Route Handlers or protected API service connected to Supabase Auth/PostgreSQL.
+- [ ] Shared production rate limiting/WAF policy across API instances.
 - [ ] Email/password, Google OAuth, password recovery, email verification and MFA configured.
 - [ ] Migration applied to isolated development/staging Supabase projects and RLS tested with multiple roles.
 - [ ] Licensed sports-data provider selected, contracted and wired to a durable monitor/worker.

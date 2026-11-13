@@ -49,7 +49,7 @@ Directive 3.0 additions and their remaining external gates are mapped in `docs/D
 
 ## Security boundary
 
-The local service is intentionally small and in-memory. The 3.0 branch now includes a reviewed Supabase migration, RLS defaults, backend service boundaries, a mock provider, disabled external-provider adapters, and a default-deny activation gate. It still has no connected production authentication, persistent database, licensed sports-data feed, production secrets, or external notification service. Those integrations remain blocked until the legal, licensing, payment, data-provider and security gates in `docs/LEGAL_REVIEW_CHECKLIST.md` are independently cleared.
+The local service is intentionally small and in-memory. The 3.0 branch now includes a reviewed Supabase migration, RLS defaults, backend service boundaries, a mock provider, disabled external-provider adapters, a default-deny activation gate, and process-local API rate limiting. It still has no connected production authentication, persistent database, licensed sports-data feed, production secrets, or external notification service. Those integrations remain blocked until the legal, licensing, payment, data-provider and security gates in `docs/LEGAL_REVIEW_CHECKLIST.md` are independently cleared.
 
 ## Verification
 

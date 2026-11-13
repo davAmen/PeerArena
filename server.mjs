@@ -14,10 +14,13 @@ import {
   setSelfExclusion,
   settleChallenge
 } from "./src/demo-engine.mjs";
+import { SlidingWindowRateLimiter, requestAddress } from "./src/backend/rate-limit.mjs";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const distRoot = path.join(projectRoot, "dist");
 let state = createInitialState();
+const apiRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 120 });
+const mutationRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 30 });
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -82,8 +85,23 @@ function demoDisabled(response, message = "This capability is disabled in the si
   return sendJson(response, 403, { error: message, code: "REAL_MONEY_DISABLED", demoMode: true });
 }
 
+function applyRateLimit(request, response, url) {
+  const limiter = ["POST", "PATCH", "PUT", "DELETE"].includes(request.method) ? mutationRateLimiter : apiRateLimiter;
+  const decision = limiter.consume(`${requestAddress(request)}:${request.method}:${url.pathname}`);
+  if (decision.allowed) return true;
+  response.writeHead(429, securityHeaders({
+    "Content-Type": "application/json; charset=utf-8",
+    "Retry-After": String(decision.retryAfterSeconds),
+    "X-RateLimit-Limit": String(decision.limit),
+    "X-RateLimit-Remaining": "0"
+  }));
+  response.end(JSON.stringify({ error: "Too many requests.", code: "RATE_LIMITED", retryAfterSeconds: decision.retryAfterSeconds }));
+  return false;
+}
+
 async function handleApi(request, response, url) {
   try {
+    if (!applyRateLimit(request, response, url)) return;
     if (request.method === "GET" && url.pathname === "/api/health") {
       return sendJson(response, 200, { ok: true, demoMode: true, realMoneyEnabled: false, service: "peerarena-demo" });
     }

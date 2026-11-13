@@ -28,9 +28,9 @@ The current feed is synthetic. A licensed data-provider contract, sandbox key, r
 
 Verified locally on 2026-11-13:
 
-- `npm run check`: passed; 16 tests passed, environment gate validation passed, and JavaScript syntax checks passed.
+- `npm run check`: passed; 18 tests passed, environment gate validation passed, and JavaScript syntax checks passed.
 - `npm run build`: passed; `dist/index.html`, `dist/app.js` and `dist/styles.css` were found.
-- Temporary localhost API smoke test: passed for health, disabled real-money state, sports, live events and public challenges.
+- Temporary localhost API smoke test: passed for health, disabled real-money state, sports, live events, public challenges and the `429` rate-limit boundary.
 - `git diff --check`: passed.
 - Supabase SQL execution: not run; no connected Supabase project or local PostgreSQL instance was available.
 

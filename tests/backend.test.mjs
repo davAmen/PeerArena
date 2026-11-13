@@ -10,6 +10,7 @@ import {
 } from "../src/backend/ledger.mjs";
 import { createPaymentProvider, MockPaymentProvider, PAYMENT_PROVIDER_MANIFEST } from "../src/backend/payments.mjs";
 import { determineSettlement } from "../src/backend/settlement.mjs";
+import { SlidingWindowRateLimiter } from "../src/backend/rate-limit.mjs";
 
 test("ledger converts exact minor units without floating point arithmetic", () => {
   assert.equal(toMinorUnits("20.05"), 2005n);
@@ -100,4 +101,16 @@ test("real-money activation is default-deny even when an individual flag is set"
   });
   assert.equal(gate.enabled, false);
   assert.match(gate.blockers.join(" "), /safeguarding/);
+});
+
+test("rate limiter returns retry metadata and resets after its window", () => {
+  let now = 1_000;
+  const limiter = new SlidingWindowRateLimiter({ windowMs: 1_000, maxRequests: 2, now: () => now });
+  assert.equal(limiter.consume("client-1").allowed, true);
+  assert.equal(limiter.consume("client-1").remaining, 0);
+  const blocked = limiter.consume("client-1");
+  assert.equal(blocked.allowed, false);
+  assert.equal(blocked.retryAfterSeconds, 1);
+  now += 1_000;
+  assert.equal(limiter.consume("client-1").allowed, true);
 });
