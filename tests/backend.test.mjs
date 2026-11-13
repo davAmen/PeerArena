@@ -11,6 +11,12 @@ import {
 import { createPaymentProvider, MockPaymentProvider, PAYMENT_PROVIDER_MANIFEST } from "../src/backend/payments.mjs";
 import { determineSettlement } from "../src/backend/settlement.mjs";
 import { SlidingWindowRateLimiter } from "../src/backend/rate-limit.mjs";
+import {
+  AuthProviderError,
+  DisabledAuthProvider,
+  SupabaseAuthProvider,
+  createAuthProviderFromEnv
+} from "../src/backend/auth.mjs";
 
 test("ledger converts exact minor units without floating point arithmetic", () => {
   assert.equal(toMinorUnits("20.05"), 2005n);
@@ -113,4 +119,104 @@ test("rate limiter returns retry metadata and resets after its window", () => {
   assert.equal(blocked.retryAfterSeconds, 1);
   now += 1_000;
   assert.equal(limiter.consume("client-1").allowed, true);
+});
+
+test("Supabase Auth remains disabled when public project configuration is absent", () => {
+  const provider = createAuthProviderFromEnv({});
+  assert.ok(provider instanceof DisabledAuthProvider);
+  assert.equal(provider.getCapabilities().configured, false);
+  assert.throws(() => provider.signInWithPassword({ email: "demo@example.com", password: "not-a-real-password" }), (error) => {
+    assert.equal(error.code, "AUTH_NOT_CONFIGURED");
+    assert.equal(error.status, 503);
+    return true;
+  });
+});
+
+test("Supabase Auth adapter maps account, session and recovery operations to Auth API requests", async () => {
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    calls.push({ url, init, body: init.body ? JSON.parse(init.body) : undefined });
+    const path = new URL(url).pathname;
+    const payload = path.endsWith("/signup")
+      ? { user: { id: "user-1" }, session: null }
+      : path.endsWith("/token")
+        ? { access_token: "access-token-1", user: { id: "user-1" } }
+        : path.endsWith("/user")
+          ? { id: "user-1", email: "demo@example.com" }
+          : { ok: true };
+    return new Response(JSON.stringify(payload), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  const provider = new SupabaseAuthProvider({
+    url: "https://peerarena.supabase.co",
+    anonKey: "public-anon-key",
+    defaultRedirectUrl: "https://peerarena.example/auth/callback",
+    fetchImpl
+  });
+
+  const signUp = await provider.signUp({ email: "Demo@Example.com", password: "strong-demo-password", metadata: { source: "demo" } });
+  const signIn = await provider.signInWithPassword({ email: "demo@example.com", password: "strong-demo-password" });
+  const recovery = await provider.requestPasswordRecovery({ email: "demo@example.com" });
+  const user = await provider.getUser(signIn.access_token);
+  const logout = await provider.signOut(signIn.access_token);
+
+  assert.equal(signUp.user.id, "user-1");
+  assert.equal(signIn.access_token, "access-token-1");
+  assert.deepEqual(recovery, { ok: true });
+  assert.equal(user.email, "demo@example.com");
+  assert.deepEqual(logout, { ok: true });
+  assert.deepEqual(calls.map(({ url, init }) => [new URL(url).pathname, init.method]), [
+    ["/auth/v1/signup", "POST"],
+    ["/auth/v1/token", "POST"],
+    ["/auth/v1/recover", "POST"],
+    ["/auth/v1/user", "GET"],
+    ["/auth/v1/logout", "POST"]
+  ]);
+  assert.deepEqual(calls[0].body, {
+    email: "demo@example.com",
+    password: "strong-demo-password",
+    data: { source: "demo" }
+  });
+  assert.equal(new URL(calls[0].url).searchParams.get("redirect_to"), "https://peerarena.example/auth/callback");
+  assert.equal(calls[1].url, "https://peerarena.supabase.co/auth/v1/token?grant_type=password");
+  assert.equal(new URL(calls[2].url).searchParams.get("redirect_to"), "https://peerarena.example/auth/callback");
+  assert.deepEqual(calls[2].body, { email: "demo@example.com" });
+  assert.equal(calls[3].init.headers.Authorization, "Bearer access-token-1");
+  assert.equal(calls[4].init.headers.Authorization, "Bearer access-token-1");
+});
+
+test("Supabase Auth adapter creates an allowlisted Google OAuth URL without making a network call", () => {
+  let calls = 0;
+  const provider = new SupabaseAuthProvider({
+    url: "https://peerarena.supabase.co",
+    anonKey: "public-anon-key",
+    fetchImpl: async () => {
+      calls += 1;
+      return new Response("{}", { status: 200 });
+    }
+  });
+  const oauthUrl = new URL(provider.getGoogleOAuthUrl({ redirectTo: "https://peerarena.example/auth/callback" }));
+  assert.equal(oauthUrl.pathname, "/auth/v1/authorize");
+  assert.equal(oauthUrl.searchParams.get("provider"), "google");
+  assert.equal(oauthUrl.searchParams.get("redirect_to"), "https://peerarena.example/auth/callback");
+  assert.equal(calls, 0);
+});
+
+test("Supabase Auth adapter sanitizes provider errors and never includes credentials in messages", async () => {
+  const secret = "strong-demo-password";
+  const provider = new SupabaseAuthProvider({
+    url: "https://peerarena.supabase.co",
+    anonKey: "public-anon-key",
+    fetchImpl: async () => new Response(JSON.stringify({ error_code: "invalid_credentials", msg: `bad password: ${secret}` }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" }
+    })
+  });
+  await assert.rejects(() => provider.signInWithPassword({ email: "demo@example.com", password: secret }), (error) => {
+    assert.ok(error instanceof AuthProviderError);
+    assert.equal(error.code, "AUTH_PROVIDER_REJECTED");
+    assert.equal(error.providerCode, "invalid_credentials");
+    assert.equal(error.status, 400);
+    assert.equal(error.message.includes(secret), false);
+    return true;
+  });
 });

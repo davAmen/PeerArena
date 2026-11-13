@@ -4,6 +4,8 @@ The local Node service exposes the application contract below. It is a simulated
 
 The local API now applies an in-memory sliding-window limiter: 120 read requests and 30 mutation requests per client address and route per minute. Exceeded mutation calls return `429`, `Retry-After`, and `RATE_LIMITED`. A production deployment must replace this process-local limiter with a shared store/WAF policy so limits remain consistent across instances.
 
+The repository also contains a fail-closed Supabase Auth adapter in `src/backend/auth.mjs`. It is covered by mock-fetch contract tests but is not connected to the local demo routes; absent or invalid Supabase configuration produces `AUTH_NOT_CONFIGURED` without a network call.
+
 ## Public and demo routes
 
 | Method | Route | Demo behavior |
@@ -37,6 +39,7 @@ The routes exist, but production identity operations are not connected in the lo
 The service modules in `src/backend/` define the replacement boundary:
 
 - `config.mjs` applies the default-deny activation gate.
+- `auth.mjs` defines the fail-closed Supabase Auth boundary for email/password, recovery, bearer-token lookup/logout and Google OAuth URL creation.
 - `ledger.mjs` represents amounts as integer minor units.
 - `payments.mjs` defines the provider interface and a working mock provider.
 - `settlement.mjs` calculates a deterministic shared-pool distribution.
@@ -44,4 +47,4 @@ The service modules in `src/backend/` define the replacement boundary:
 
 ## Production replacement requirements
 
-Before these routes can be connected to Supabase Auth/PostgreSQL or external providers, add server-side session validation, schema validation, rate limiting, signed webhook verification against the raw body, durable idempotency records, transaction boundaries, role-based admin authorization, and audit logging. The SQL migration deliberately denies direct client access to authoritative financial tables.
+Before these routes can be connected to Supabase Auth/PostgreSQL or external providers, bind the adapter to a server-side session strategy, add schema validation, shared rate limiting, signed webhook verification against the raw body, durable idempotency records, transaction boundaries, role-based admin authorization, and audit logging. The SQL migration deliberately denies direct client access to authoritative financial tables.

@@ -36,7 +36,7 @@ The admin route is a demonstration control surface only; it is not an authentica
 | --- | --- |
 | `server.mjs` | Node HTTP server, static hosting and demo API routes |
 | `src/demo-engine.mjs` | Challenge lifecycle, synthetic ledger and settlement rules |
-| `src/backend/` | Exact-unit ledger, settlement, payment-provider boundary, runtime gate and API contract modules |
+| `src/backend/` | Exact-unit ledger, settlement, Supabase Auth and payment-provider boundaries, runtime gate and API contract modules |
 | `dist/index.html` | Demo shell |
 | `dist/app.js` | Responsive single-page frontend |
 | `dist/styles.css` | Dark, responsive product UI |
@@ -49,7 +49,7 @@ Directive 3.0 additions and their remaining external gates are mapped in `docs/D
 
 ## Security boundary
 
-The local service is intentionally small and in-memory. The 3.0 branch now includes a reviewed Supabase migration, RLS defaults, backend service boundaries, a mock provider, disabled external-provider adapters, a default-deny activation gate, and process-local API rate limiting. It still has no connected production authentication, persistent database, licensed sports-data feed, production secrets, or external notification service. Those integrations remain blocked until the legal, licensing, payment, data-provider and security gates in `docs/LEGAL_REVIEW_CHECKLIST.md` are independently cleared.
+The local service is intentionally small and in-memory. The 3.0 branch now includes a reviewed Supabase migration, RLS defaults, a fail-closed Supabase Auth adapter, backend service boundaries, a mock provider, disabled external-provider adapters, a default-deny activation gate, and process-local API rate limiting. It still has no connected production authentication, persistent database, licensed sports-data feed, production secrets, or external notification service. Those integrations remain blocked until the legal, licensing, payment, data-provider and security gates in `docs/LEGAL_REVIEW_CHECKLIST.md` are independently cleared.
 
 ## Verification
 

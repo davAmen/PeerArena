@@ -8,6 +8,7 @@ This repository is a working static frontend plus a local Node HTTP demo service
 - `scripts/verify-build.mjs` and `npm run check` for CI/build verification.
 - `supabase/migrations/0001_peerarena_foundation.sql` containing the PostgreSQL schema, constraints, indexes, trigger and RLS foundation.
 - server-side service modules for exact-unit ledger calculations, settlement and provider boundaries.
+- a fail-closed Supabase Auth adapter with mock-fetch contract tests; it is not yet wired into protected routes.
 - a CI workflow at `.github/workflows/ci.yml`.
 
 `vercel.json` does not claim that `server.mjs` is a Vercel Function. Vercel can publish the frontend from `dist`; the API must be migrated to Next.js Route Handlers or deployed as a separately managed backend/worker before a public full-stack launch.
