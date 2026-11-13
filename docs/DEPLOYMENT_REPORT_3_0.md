@@ -8,6 +8,8 @@ The repository contains the existing PeerArena simulated-funds experience plus t
 
 The protected PeerArena demo was deployed to [peerarena.vercel.app](https://peerarena.vercel.app). Vercel authentication protection remains enabled, so anonymous visitors are not granted access. `dist` supplies the frontend and `api/[...path].mjs` exposes the synthetic `/api/*` contract through a Vercel Function; state is in-memory and resets across function instances.
 
+Latest verified production deployment: `dpl_5rX3aQwc6rTgdzFRo4uGvCxpGig6`, status `READY`, target `production`, with `vercel_authentication` protection. Inspector: [Vercel deployment](https://vercel.com/amenukudavid20-9818s-projects/peerarena/5rX3aQwc6rTgdzFRo4uGvCxpGig6).
+
 ## Database status
 
 The owner-operated PostgreSQL schema, hardening migration, role bootstrap and reviewed `create_challenge` procedure are present as source code. No production database has been provisioned or connected. RLS is forced, direct table access is denied, and authoritative finance procedures remain blocked.
