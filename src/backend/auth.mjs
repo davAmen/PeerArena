@@ -98,7 +98,7 @@ async function responsePayload(response) {
 export class SupabaseAuthProvider {
   constructor({ url, anonKey, fetchImpl = globalThis.fetch, defaultRedirectUrl } = {}) {
     this.baseUrl = supabaseUrl(url);
-    this.anonKey = requiredString(anonKey, "Supabase anon key", { maxLength: 16_384 });
+    this.anonKey = requiredString(anonKey, "Supabase public key", { maxLength: 16_384 });
     if (typeof fetchImpl !== "function") throw new AuthProviderError("A fetch implementation is required.", { code: "AUTH_INVALID_CONFIG", status: 500 });
     this.fetchImpl = fetchImpl;
     this.defaultRedirectUrl = redirectUrl(defaultRedirectUrl, "Default redirect URL");
@@ -215,7 +215,7 @@ export class DisabledAuthProvider {
 
 export function createAuthProviderFromEnv(env = process.env, fetchImpl = globalThis.fetch) {
   const url = env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const anonKey = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anonKey) return new DisabledAuthProvider();
   try {
     return new SupabaseAuthProvider({

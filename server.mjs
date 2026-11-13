@@ -18,6 +18,7 @@ import { AuthProviderError, createAuthProviderFromEnv } from "./src/backend/auth
 import { requireAuthenticatedSession, revokeAuthenticatedSession } from "./src/backend/auth-session.mjs";
 import { requireAdminSession } from "./src/backend/authorization.mjs";
 import { readRuntimeConfig } from "./src/backend/config.mjs";
+import { ProfileRepositoryError, createProfileRepositoryFromEnv } from "./src/backend/profiles.mjs";
 import { SlidingWindowRateLimiter, requestAddress } from "./src/backend/rate-limit.mjs";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
@@ -25,6 +26,7 @@ const distRoot = path.join(projectRoot, "dist");
 let state = createInitialState();
 const runtimeConfig = readRuntimeConfig();
 const authProvider = createAuthProviderFromEnv();
+const profileRepository = createProfileRepositoryFromEnv();
 const apiRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 120 });
 const mutationRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 30 });
 
@@ -77,6 +79,12 @@ function productionPersistenceDisabled(response, resource) {
     code: "PERSISTENCE_NOT_CONFIGURED",
     productionAuth: "SUPABASE"
   });
+}
+
+function assertProfilePersistenceConfigured() {
+  if (!profileRepository.getCapabilities().configured) {
+    throw new ProfileRepositoryError("Profile persistence is not configured.", { code: "PERSISTENCE_NOT_CONFIGURED", status: 503 });
+  }
 }
 
 async function readJson(request) {
@@ -240,7 +248,10 @@ async function handleApi(request, response, url) {
       if (productionAuthEnabled()) {
         assertProductionAuthConfigured();
         const session = await requireAuthenticatedSession({ request, provider: authProvider });
-        return sendJson(response, 200, { user: session.user, profile: null, persistence: "NOT_CONFIGURED", productionAuth: "SUPABASE" });
+        assertProfilePersistenceConfigured();
+        const profile = await profileRepository.getByAuthUserId(session.user.id);
+        if (!profile) throw new ProfileRepositoryError("Profile was not found.", { code: "PROFILE_NOT_FOUND", status: 404 });
+        return sendJson(response, 200, { user: session.user, profile, productionAuth: "SUPABASE" });
       }
       return sendJson(response, 200, { user: state.user });
     }
@@ -263,8 +274,11 @@ async function handleApi(request, response, url) {
     if (request.method === "PATCH" && url.pathname === "/api/users/me") {
       if (productionAuthEnabled()) {
         assertProductionAuthConfigured();
-        await requireAuthenticatedSession({ request, provider: authProvider });
-        return productionPersistenceDisabled(response, "Profile");
+        const session = await requireAuthenticatedSession({ request, provider: authProvider });
+        assertProfilePersistenceConfigured();
+        const profile = await profileRepository.updateByAuthUserId(session.user.id, await readJson(request));
+        if (!profile) throw new ProfileRepositoryError("Profile was not found.", { code: "PROFILE_NOT_FOUND", status: 404 });
+        return sendJson(response, 200, { profile, productionAuth: "SUPABASE" });
       }
       return demoDisabled(response, "Profile persistence is not connected in the simulated demo.");
     }

@@ -21,7 +21,7 @@ No Vercel, GitHub or Supabase deployment was attempted in this workspace. No acc
 
 - Authorized private GitHub repository and permission to enable branch protection, pull-request checks, dependency review and secret scanning.
 - Vercel team/project access, selected region, root directory and domain ownership if a custom domain is used.
-- Supabase project URL, anon key, service-role key, database connection string, backup policy and an approved migration window.
+- Supabase project URL, publishable key, preferred secret key (or legacy service-role key), database connection string, backup policy and an approved migration window.
 - `AUTH_MODE=demo` for the default synthetic environment; use `AUTH_MODE=supabase` only in an isolated Auth test environment after route and redirect checks pass.
 - Supabase Auth configuration for email verification, password recovery, MFA and Google OAuth, including local, Vercel preview and production redirect URLs.
 - Approved sports-data provider contract and sandbox API key.

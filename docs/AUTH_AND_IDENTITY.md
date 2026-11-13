@@ -4,7 +4,7 @@
 
 ## Supabase Auth adapter boundary
 
-`SupabaseAuthProvider` uses the public Supabase project URL and anon key to model the server-side Auth contract without adding a dependency or storing a local session. It supports:
+`SupabaseAuthProvider` uses the public Supabase project URL and publishable key (with a legacy anon-key fallback) to model the server-side Auth contract without adding a dependency or storing a local session. It supports:
 
 | Adapter method | Supabase Auth operation |
 | --- | --- |
@@ -15,7 +15,7 @@
 | `signOut` | Bearer-token logout at `/auth/v1/logout` |
 | `getGoogleOAuthUrl` | Google OAuth authorization URL at `/auth/v1/authorize` |
 
-`createAuthProviderFromEnv()` returns `DisabledAuthProvider` when `NEXT_PUBLIC_SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_ANON_KEY` is absent or invalid. The disabled provider returns `AUTH_NOT_CONFIGURED` and never makes a network request. `NEXT_PUBLIC_APP_URL`, when present, supplies the default redirect URL; every redirect still needs to be registered in the Supabase Auth redirect allowlist. The adapter never accepts or uses the service-role key.
+`createAuthProviderFromEnv()` returns `DisabledAuthProvider` when `NEXT_PUBLIC_SUPABASE_URL` or both public-key names are absent or invalid. The disabled provider returns `AUTH_NOT_CONFIGURED` and never makes a network request. `NEXT_PUBLIC_APP_URL`, when present, supplies the default redirect URL; every redirect still needs to be registered in the Supabase Auth redirect allowlist. The adapter never accepts or uses a server secret key.
 
 `auth-session.mjs` is the server-side bearer-session boundary around that provider. It accepts only a single `Authorization: Bearer <token>` value, supports required and optional session resolution, validates the returned user shape, maps provider failures to safe `401`/`503` errors and revokes a bearer session without returning the token. It does not log or include credentials in error messages.
 
@@ -23,7 +23,7 @@ The boundary deliberately does not yet provide application session cookies, acco
 
 ## Route activation boundary
 
-`AUTH_MODE=demo` is the safe default and preserves the existing synthetic session. `AUTH_MODE=supabase` is an explicit integration switch for the Auth routes only. It requires both public Supabase values; if either value is absent or invalid, the routes return `503 AUTH_NOT_CONFIGURED` and do not use the demo identity. The remaining profile, challenge, ledger, admin and payout routes still require protected persistence and authorization work.
+`AUTH_MODE=demo` is the safe default and preserves the existing synthetic session. `AUTH_MODE=supabase` is an explicit integration switch for the Auth and profile routes. It requires both public Supabase values; if either value is absent or invalid, the routes return `503 AUTH_NOT_CONFIGURED` and do not use the demo identity. Challenge, ledger and payout routes still require protected persistence and authorization work.
 
 ## Authorization boundary
 
@@ -54,8 +54,10 @@ The landing page's sign-in and registration forms provide a local product walkth
 Use `.env.example` as a name-only template. A development or staging Auth connection requires:
 
 - `NEXT_PUBLIC_SUPABASE_URL` — the isolated project URL;
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — the project publishable/anon key; and
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` — the browser-safe publishable key; the legacy `NEXT_PUBLIC_SUPABASE_ANON_KEY` remains a compatibility fallback; and
 - `NEXT_PUBLIC_APP_URL` — the application origin used as the default redirect.
+
+Durable profile routes additionally require the server-only `SUPABASE_SECRET_KEY`; the legacy `SUPABASE_SERVICE_ROLE_KEY` is accepted as a compatibility fallback. Secret keys belong only in the backend secret store and are used for controlled server-side PostgREST calls after the request's bearer identity and authorization checks.
 
 Configure email confirmation, password recovery, Google OAuth credentials and exact local/preview/production redirect URLs in the Supabase dashboard before wiring the adapter into protected handlers. Supabase's [redirect URL guidance](https://supabase.com/docs/guides/auth/redirect-urls) requires the `redirectTo` value to match the configured allowlist. Recovery and sign-in UI must keep generic responses so it does not disclose whether an email address exists.
 

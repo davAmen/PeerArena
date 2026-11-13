@@ -25,6 +25,13 @@ import {
   revokeAuthenticatedSession
 } from "../src/backend/auth-session.mjs";
 import { AuthorizationError, requireAdminSession, requireRole, rolesForUser } from "../src/backend/authorization.mjs";
+import {
+  DisabledProfileRepository,
+  ProfileRepositoryError,
+  SupabaseProfileRepository,
+  createProfileRepositoryFromEnv,
+  sanitizeProfilePatch
+} from "../src/backend/profiles.mjs";
 
 test("ledger converts exact minor units without floating point arithmetic", () => {
   assert.equal(toMinorUnits("20.05"), 2005n);
@@ -120,6 +127,8 @@ test("real-money activation is default-deny even when an individual flag is set"
 test("runtime configuration defaults to synthetic auth and requires explicit Supabase mode", () => {
   assert.equal(readRuntimeConfig({}).authMode, "demo");
   assert.equal(readRuntimeConfig({ AUTH_MODE: "supabase" }).authMode, "supabase");
+  assert.equal(readRuntimeConfig({ NEXT_PUBLIC_SUPABASE_URL: "https://peerarena.supabase.co", NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test" }).supabaseConfigured, true);
+  assert.equal(readRuntimeConfig({ NEXT_PUBLIC_SUPABASE_URL: "https://peerarena.supabase.co", SUPABASE_SECRET_KEY: "sb_secret_test" }).supabasePersistenceConfigured, true);
 });
 
 test("rate limiter returns retry metadata and resets after its window", () => {
@@ -143,6 +152,11 @@ test("Supabase Auth remains disabled when public project configuration is absent
     assert.equal(error.status, 503);
     return true;
   });
+  const publishableProvider = createAuthProviderFromEnv({
+    NEXT_PUBLIC_SUPABASE_URL: "https://peerarena.supabase.co",
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test"
+  }, async () => new Response("{}", { status: 200 }));
+  assert.equal(publishableProvider.getCapabilities().configured, true);
 });
 
 test("Supabase Auth adapter maps account, session and recovery operations to Auth API requests", async () => {
@@ -322,4 +336,61 @@ test("authorization reads admin roles only from server-controlled app metadata",
       return true;
     }
   );
+});
+
+test("profile patch validation rejects identity and authorization fields", () => {
+  assert.deepEqual(sanitizeProfilePatch({ username: "Accra_Gunner", country: "gh", preferred_language: "EN" }), {
+    username: "Accra_Gunner",
+    country: "GH",
+    preferred_language: "en"
+  });
+  assert.throws(() => sanitizeProfilePatch({ account_status: "ELIGIBLE_FOR_PLAY" }), (error) => {
+    assert.ok(error instanceof ProfileRepositoryError);
+    assert.equal(error.code, "PROFILE_FIELD_NOT_ALLOWED");
+    assert.equal(error.status, 400);
+    return true;
+  });
+  assert.throws(() => sanitizeProfilePatch({ username: "bad name" }), /Username must be/);
+});
+
+test("Supabase profile repository uses a server-only secret key and scopes writes by auth user", async () => {
+  const authUserId = "550e8400-e29b-41d4-a716-446655440000";
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    calls.push({ url, init, body: init.body ? JSON.parse(init.body) : undefined });
+    const profile = {
+      id: "650e8400-e29b-41d4-a716-446655440000",
+      auth_user_id: authUserId,
+      username: "Accra_Gunner",
+      country: "GH",
+      preferred_language: "en",
+      account_status: "REGISTERED"
+    };
+    return new Response(JSON.stringify([profile]), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  const repository = new SupabaseProfileRepository({ url: "https://peerarena.supabase.co", secretKey: "sb_secret_test", fetchImpl });
+  const found = await repository.getByAuthUserId(authUserId);
+  const updated = await repository.updateByAuthUserId(authUserId, { username: "Accra_Gunner", full_name: "Accra Gunner" });
+
+  assert.equal(found.auth_user_id, authUserId);
+  assert.equal(updated.username, "Accra_Gunner");
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].init.headers.apikey, "sb_secret_test");
+  assert.equal(calls[0].init.headers.Authorization, undefined);
+  assert.equal(new URL(calls[0].url).searchParams.get("auth_user_id"), `eq.${authUserId}`);
+  assert.equal(calls[1].init.method, "PATCH");
+  assert.equal(calls[1].init.headers.Prefer, "return=representation");
+  assert.deepEqual(calls[1].body, { username: "Accra_Gunner", full_name: "Accra Gunner" });
+});
+
+test("profile repository factory fails closed without server persistence credentials", () => {
+  const disabled = createProfileRepositoryFromEnv({});
+  assert.ok(disabled instanceof DisabledProfileRepository);
+  assert.equal(disabled.getCapabilities().configured, false);
+  const configured = createProfileRepositoryFromEnv({
+    NEXT_PUBLIC_SUPABASE_URL: "https://peerarena.supabase.co",
+    SUPABASE_SERVICE_ROLE_KEY: "legacy-service-role"
+  }, async () => new Response("[]", { status: 200 }));
+  assert.equal(configured.getCapabilities().configured, true);
+  assert.equal(configured.getCapabilities().keyType, "legacy-service-role");
 });

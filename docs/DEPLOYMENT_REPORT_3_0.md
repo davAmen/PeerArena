@@ -14,7 +14,7 @@ No Vercel deployment was performed. The local demo is available only when starte
 
 ## Authentication status
 
-The demo uses a synthetic session by default. A fail-closed Supabase Auth adapter, server-side bearer-session boundary and explicit `AUTH_MODE=supabase` route wiring now cover email/password registration and sign-in, password recovery, bearer-token user lookup/logout and Google OAuth URL creation. Admin routes require a server-controlled `app_metadata` admin role; synthetic profile/challenge mutations fail closed in Supabase mode. The default remains `AUTH_MODE=demo`; missing or invalid Supabase configuration returns `503 AUTH_NOT_CONFIGURED` rather than using the demo identity. Durable profile persistence, challenge ownership, eligibility, financial authorization, email verification and MFA remain unconfigured. The exact redirect URLs, project keys and service-role configuration are listed in `docs/VERCEL_DEPLOYMENT_3_0.md`.
+The demo uses a synthetic session by default. A fail-closed Supabase Auth adapter, server-side bearer-session boundary, explicit `AUTH_MODE=supabase` route wiring and server-only profile repository now cover email/password registration and sign-in, password recovery, bearer-token user lookup/logout, Google OAuth URL creation and allowlisted profile reads/updates. Admin routes require a server-controlled `app_metadata` admin role; synthetic challenge mutations fail closed in Supabase mode. The default remains `AUTH_MODE=demo`; missing or invalid Supabase configuration returns `503 AUTH_NOT_CONFIGURED`, while missing server persistence credentials return `503 PERSISTENCE_NOT_CONFIGURED`. Challenge ownership, eligibility, financial authorization, email verification and MFA remain unconfigured. The exact redirect URLs, project keys and server-key configuration are listed in `docs/VERCEL_DEPLOYMENT_3_0.md`.
 
 ## Payment integration status
 
@@ -28,7 +28,7 @@ The current feed is synthetic. A licensed data-provider contract, sandbox key, r
 
 Verified locally on 2026-11-13:
 
-- `npm run check`: passed; 26 tests passed, environment gate validation passed, and JavaScript syntax checks passed.
+- `npm run check`: passed; 29 tests passed, environment gate validation passed, and JavaScript syntax checks passed.
 - `npm run build`: passed; `dist/index.html`, `dist/app.js` and `dist/styles.css` were found.
 - Temporary localhost API smoke test: passed for health, disabled real-money state, sports, live events, public challenges and the `429` rate-limit boundary.
 - `git diff --check`: passed.

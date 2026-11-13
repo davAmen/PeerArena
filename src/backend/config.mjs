@@ -4,6 +4,7 @@ const asBoolean = (value, fallback = false) => {
 };
 
 export function readRuntimeConfig(env = process.env) {
+  const publicSupabaseKey = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   return Object.freeze({
     appEnv: env.APP_ENV ?? "demo",
     authMode: env.AUTH_MODE ?? "demo",
@@ -11,7 +12,8 @@ export function readRuntimeConfig(env = process.env) {
     realMoneyEnabled: asBoolean(env.REAL_MONEY_ENABLED, false),
     mockPaymentsEnabled: asBoolean(env.MOCK_PAYMENTS_ENABLED, true),
     googleAuthEnabled: asBoolean(env.GOOGLE_AUTH_ENABLED, false),
-    supabaseConfigured: Boolean(env.NEXT_PUBLIC_SUPABASE_URL && env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+    supabaseConfigured: Boolean(env.NEXT_PUBLIC_SUPABASE_URL && publicSupabaseKey),
+    supabasePersistenceConfigured: Boolean(env.NEXT_PUBLIC_SUPABASE_URL && (env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY)),
     productionAuthorization: env.REAL_MONEY_OPERATIONAL_AUTHORIZATION ?? "",
     paymentProviderApproved: asBoolean(env.PAYMENT_PROVIDER_APPROVED, false),
     gamingAuthorizationVerified: asBoolean(env.GAMING_AUTHORIZATION_VERIFIED, false),

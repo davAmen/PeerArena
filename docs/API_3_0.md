@@ -28,7 +28,9 @@ The repository also contains a fail-closed Supabase Auth adapter in `src/backend
 
 ## Identity and user routes
 
-With the default demo mode, registration, login, recovery, profile persistence and payout-destination writes remain disabled. With explicit `AUTH_MODE=supabase`, `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/recovery`, `GET /api/auth/google`, `GET /api/auth/session` and `POST /api/auth/logout` use the configured Auth provider and bearer boundary. Admin routes require an `admin` role in server-controlled Supabase `app_metadata`. Profile persistence, challenge ownership, eligibility and payout-destination writes remain unconnected; those operations fail closed with `PERSISTENCE_NOT_CONFIGURED` in Supabase mode.
+With the default demo mode, registration, login, recovery, profile persistence and payout-destination writes remain disabled. With explicit `AUTH_MODE=supabase`, the Auth routes use the configured Auth provider and bearer boundary, and profile GET/PATCH routes use the server-only profile repository when its key is configured. Admin routes require an `admin` role in server-controlled Supabase `app_metadata`. Challenge ownership, eligibility and payout-destination writes remain unconnected; those operations fail closed with `PERSISTENCE_NOT_CONFIGURED` in Supabase mode.
+
+When `SUPABASE_SECRET_KEY` (preferred) or the legacy `SUPABASE_SERVICE_ROLE_KEY` is configured server-side, `GET /api/users/me` reads the matching `profiles` row and `PATCH /api/users/me` applies only the allowlisted profile fields. The repository never accepts an `auth_user_id` from the request body and never exposes the server key to the browser. Without that key, profile routes return `503 PERSISTENCE_NOT_CONFIGURED` after authentication.
 
 `GET /api/auth/session`, `POST /api/auth/logout`, `GET /api/users/me`, `GET /api/users/me/challenges`, and `GET /api/users/me/transactions` expose the synthetic session and its state.
 
@@ -41,6 +43,7 @@ The service modules in `src/backend/` define the replacement boundary:
 - `config.mjs` applies the default-deny activation gate.
 - `auth.mjs` defines the fail-closed Supabase Auth boundary for email/password, recovery, bearer-token lookup/logout and Google OAuth URL creation.
 - `auth-session.mjs` defines bearer-token extraction, required/optional session validation and safe logout error mapping.
+- `profiles.mjs` defines the server-only Supabase REST repository and allowlisted profile patch validation.
 - `ledger.mjs` represents amounts as integer minor units.
 - `payments.mjs` defines the provider interface and a working mock provider.
 - `settlement.mjs` calculates a deterministic shared-pool distribution.

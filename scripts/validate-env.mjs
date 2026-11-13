@@ -11,6 +11,8 @@ console.log(JSON.stringify({
   appEnv: config.appEnv,
   authMode: config.authMode,
   paymentMode: config.paymentMode,
+  supabaseConfigured: config.supabaseConfigured,
+  supabasePersistenceConfigured: config.supabasePersistenceConfigured,
   realMoneyEnabled: config.realMoneyEnabled,
   gate: gate.enabled ? "READY_FOR_SEPARATE_REVIEW" : "BLOCKED",
   blockers: gate.blockers
