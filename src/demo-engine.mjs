@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { fromMinorUnits, toMinorUnits } from "./backend/ledger.mjs";
 
 export const DEMO_CURRENCY = "DEMO";
 export const MAX_DEMO_STAKE = 1000;
@@ -51,11 +52,40 @@ function ensure(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+function demoMinor(value) {
+  return toMinorUnits(String(value));
+}
+
+function demoAmount(minor) {
+  const value = BigInt(minor);
+  const sign = value < 0n ? -1 : 1;
+  const magnitude = value < 0n ? -value : value;
+  return sign * Number(fromMinorUnits(magnitude));
+}
+
+function addMoney(left, right) {
+  return demoAmount(demoMinor(left) + demoMinor(right));
+}
+
+function subtractMoney(left, right) {
+  return demoAmount(demoMinor(left) - demoMinor(right));
+}
+
+function sumMoney(values) {
+  return demoAmount(values.reduce((sum, value) => sum + demoMinor(value), 0n));
+}
+
+function signedMoney(value) {
+  const numeric = Number(value);
+  const magnitude = demoMinor(Math.abs(numeric));
+  return numeric < 0 ? demoAmount(-magnitude) : demoAmount(magnitude);
+}
+
 function amount(value) {
-  const parsed = Number(value);
-  ensure(Number.isFinite(parsed) && parsed > 0, "Stake must be greater than zero.");
-  ensure(parsed <= MAX_DEMO_STAKE, `Demo stakes are capped at ${MAX_DEMO_STAKE} DEMO credits.`);
-  return Math.round(parsed * 100) / 100;
+  const parsed = demoMinor(value);
+  ensure(parsed > 0n, "Stake must be greater than zero.");
+  ensure(parsed <= BigInt(MAX_DEMO_STAKE) * 100n, `Demo stakes are capped at ${MAX_DEMO_STAKE} DEMO credits.`);
+  return demoAmount(parsed);
 }
 
 function challengeFor(state, challengeId) {
@@ -79,7 +109,7 @@ function addTransaction(state, type, signedAmount, description, metadata, timest
   state.transactions.unshift({
     id: id("txn"),
     type,
-    amount: Math.round(signedAmount * 100) / 100,
+    amount: signedMoney(signedAmount),
     currency: DEMO_CURRENCY,
     description,
     status: "POSTED",
@@ -350,7 +380,7 @@ export function createChallenge(state, input, timestamp = Date.now()) {
   ensure(getPredictionChoices(event, market).includes(prediction), "Select a valid binary prediction.");
 
   const stake = amount(input.stake);
-  ensure(state.user.balance >= stake, "Insufficient demo credits.");
+  ensure(demoMinor(state.user.balance) >= demoMinor(stake), "Insufficient demo credits.");
   const maxParticipants = Number(input.maxParticipants ?? 2);
   ensure([2, 4, 6, MAX_POOL_PARTICIPANTS].includes(maxParticipants), "Choose a supported participant capacity.");
   const expiryHours = Math.min(Math.max(Number(input.expiryHours) || 24, 1), 72);
@@ -379,7 +409,7 @@ export function createChallenge(state, input, timestamp = Date.now()) {
     settlement: null
   };
 
-  state.user.balance = Math.round((state.user.balance - stake) * 100) / 100;
+  state.user.balance = subtractMoney(state.user.balance, stake);
   state.challenges.unshift(challenge);
   addTransaction(state, "DEMO_STAKE_RESERVED", -stake, `${challenge.title} · stake reserved`, { challengeId: challenge.id }, timestamp);
   addAudit(state, "CHALLENGE_CREATED", { challengeId: challenge.id, visibility: challenge.visibility, stake }, timestamp);
@@ -393,20 +423,34 @@ export function acceptChallenge(state, challengeId, timestamp = Date.now()) {
   ensure(["AWAITING_ACCEPTANCE", "ACTIVE"].includes(challenge.status), "This challenge is no longer open for acceptance.");
   ensure(challenge.creatorId !== state.user.id, "You cannot accept your own challenge.");
   ensure(new Date(challenge.expiresAt).getTime() > timestamp, "This challenge has expired.");
-  ensure(state.user.balance >= challenge.stake, "Insufficient demo credits to accept this challenge.");
+  ensure(demoMinor(state.user.balance) >= demoMinor(challenge.stake), "Insufficient demo credits to accept this challenge.");
   challenge.participants ??= [{ id: challenge.creatorId, name: challenge.creatorName, prediction: challenge.creatorPrediction, stake: challenge.stake, role: "CREATOR" }];
   ensure(!challenge.participants.some((participant) => participant.id === state.user.id), "You are already in this challenge.");
   ensure(challenge.participants.length < (challenge.maxParticipants ?? 2), "This challenge is full.");
 
-  state.user.balance = Math.round((state.user.balance - challenge.stake) * 100) / 100;
+  state.user.balance = subtractMoney(state.user.balance, challenge.stake);
   challenge.challengerId ??= state.user.id;
   challenge.challengerName ??= state.user.username;
   challenge.participants.push({ id: state.user.id, name: state.user.username, prediction: challenge.challengerPrediction, stake: challenge.stake, role: "PARTICIPANT" });
-  challenge.grossPool = Math.round(challenge.participants.reduce((sum, participant) => sum + participant.stake, 0) * 100) / 100;
+  challenge.grossPool = sumMoney(challenge.participants.map((participant) => participant.stake));
   challenge.acceptedAt = nowIso(timestamp);
   challenge.status = (challenge.maxParticipants ?? 2) > 2 ? "ACTIVE" : "FUNDS_CONFIRMED";
   addTransaction(state, "DEMO_STAKE_RESERVED", -challenge.stake, `${challenge.title} · matching stake reserved`, { challengeId: challenge.id }, timestamp);
   addAudit(state, "CHALLENGE_ACCEPTED", { challengeId: challenge.id, grossPool: challenge.grossPool }, timestamp);
+  return challenge;
+}
+
+export function cancelChallenge(state, challengeId, timestamp = Date.now()) {
+  ensure(state.demoMode && !state.realMoneyEnabled, "Real-money mode is disabled in this demonstration.");
+  const challenge = challengeFor(state, challengeId);
+  ensure(challenge.creatorId === state.user.id, "Only the challenge creator can cancel this demo challenge.");
+  ensure(challenge.status === "AWAITING_ACCEPTANCE", "Only an open challenge can be cancelled.");
+  challenge.status = "CLOSED";
+  if (challenge.participants?.some((participant) => participant.id === state.user.id)) {
+    state.user.balance = addMoney(state.user.balance, challenge.stake);
+    addTransaction(state, "DEMO_REFUND", challenge.stake, `${challenge.title} · cancelled challenge refund`, { challengeId: challenge.id }, timestamp);
+  }
+  addAudit(state, "CHALLENGE_CANCELLED", { challengeId: challenge.id }, timestamp);
   return challenge;
 }
 
@@ -426,7 +470,7 @@ export function settleChallenge(state, challengeId, outcome, timestamp = Date.no
     ]).map((participant) => [participant.id, participant.name, participant.stake]);
     for (const [participantId, , participantStake] of refunds) {
       if (participantId === state.user.id) {
-        state.user.balance = Math.round((state.user.balance + participantStake) * 100) / 100;
+        state.user.balance = addMoney(state.user.balance, participantStake);
         addTransaction(state, "DEMO_REFUND", participantStake, `${challenge.title} · voided market refund`, { challengeId: challenge.id }, timestamp);
       }
     }
@@ -448,8 +492,8 @@ export function settleChallenge(state, challengeId, outcome, timestamp = Date.no
   const winnerId = creatorWins ? challenge.creatorId : challenge.challengerId;
   const winnerName = creatorWins ? challenge.creatorName : challenge.challengerName;
   const commission = 0;
-  const grossPool = challenge.grossPool || (challenge.participants ?? []).reduce((sum, participant) => sum + participant.stake, 0);
-  const payout = Math.round((grossPool - commission) * 100) / 100;
+  const grossPool = challenge.grossPool || sumMoney((challenge.participants ?? []).map((participant) => participant.stake));
+  const payout = subtractMoney(grossPool, commission);
   challenge.status = "SETTLED";
   challenge.winningCommission = commission;
   challenge.payout = payout;
@@ -464,7 +508,7 @@ export function settleChallenge(state, challengeId, outcome, timestamp = Date.no
     verifiedAt
   };
   if (winnerId === state.user.id) {
-    state.user.balance = Math.round((state.user.balance + payout) * 100) / 100;
+    state.user.balance = addMoney(state.user.balance, payout);
     addTransaction(state, "DEMO_PAYOUT", payout, `${challenge.title} · winning payout`, { challengeId: challenge.id, reference: challenge.settlement.reference }, timestamp);
     state.user.stats.wins += 1;
   } else if (challenge.creatorId === state.user.id || challenge.challengerId === state.user.id) {
@@ -487,7 +531,7 @@ export function getAdminOverview(state) {
   const activeChallenges = state.challenges.filter((challenge) => ["ACTIVE", "FUNDS_CONFIRMED", "AWAITING_ACCEPTANCE"].includes(challenge.status)).length;
   const matchedChallenges = state.challenges.filter((challenge) => challenge.challengerId).length;
   const settledChallenges = state.challenges.filter((challenge) => challenge.status === "SETTLED").length;
-  const syntheticVolume = state.challenges.reduce((sum, challenge) => sum + (challenge.grossPool || 0), 0);
+  const syntheticVolume = sumMoney(state.challenges.map((challenge) => challenge.grossPool || 0));
   return {
     totalUsers: 4,
     verifiedUsers: 3,
