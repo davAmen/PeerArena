@@ -25,6 +25,10 @@ The boundary deliberately does not yet provide application session cookies, acco
 
 `AUTH_MODE=demo` is the safe default and preserves the existing synthetic session. `AUTH_MODE=supabase` is an explicit integration switch for the Auth routes only. It requires both public Supabase values; if either value is absent or invalid, the routes return `503 AUTH_NOT_CONFIGURED` and do not use the demo identity. The remaining profile, challenge, ledger, admin and payout routes still require protected persistence and authorization work.
 
+## Authorization boundary
+
+The optional route layer protects `/api/admin/*` with `requireAdminSession()`. The required role is read only from Supabase `user.app_metadata.roles` or `user.app_metadata.role`; user-editable metadata is not accepted. Missing authentication returns `401`, an authenticated user without `admin` returns `403`, and provider/configuration failures remain sanitized. Synthetic profile, challenge and responsible-play mutations are blocked with `503 PERSISTENCE_NOT_CONFIGURED` when Supabase mode is selected.
+
 The request shapes follow Supabase's documented email/password, password-recovery, user lookup, logout and OAuth flows: [email/password sign-up](https://supabase.com/docs/reference/javascript/auth-signup), [password sign-in](https://supabase.com/docs/reference/javascript/auth-signinwithpassword), [user lookup](https://supabase.com/docs/reference/javascript/auth-getuser), [password recovery](https://supabase.com/docs/reference/javascript/auth-resetpasswordforemail), [logout](https://supabase.com/docs/reference/javascript/auth-signout), and [Google OAuth](https://supabase.com/docs/reference/javascript/auth-signinwithoauth).
 
 ## Production target

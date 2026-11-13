@@ -14,6 +14,7 @@
 - [x] Fail-closed Supabase Auth adapter with mock-fetch contract tests.
 - [x] Server-side bearer-session boundary with required/optional validation and safe logout mapping.
 - [x] Explicit `AUTH_MODE=supabase` Auth route wiring with demo-mode default and fail-closed configuration handling.
+- [x] Admin RBAC boundary using server-controlled Auth metadata; synthetic persistence routes fail closed in Supabase mode.
 - [x] Vercel static build configuration, security headers and CI workflow.
 - [x] Automated lifecycle, settlement, ledger, provider and activation-gate tests.
 

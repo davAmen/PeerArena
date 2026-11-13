@@ -24,6 +24,7 @@ import {
   requireAuthenticatedSession,
   revokeAuthenticatedSession
 } from "../src/backend/auth-session.mjs";
+import { AuthorizationError, requireAdminSession, requireRole, rolesForUser } from "../src/backend/authorization.mjs";
 
 test("ledger converts exact minor units without floating point arithmetic", () => {
   assert.equal(toMinorUnits("20.05"), 2005n);
@@ -289,4 +290,36 @@ test("session boundary maps provider validation and logout failures to safe HTTP
   });
   assert.deepEqual(result, { revoked: true });
   assert.equal(revokedToken, "token-123");
+});
+
+test("authorization reads admin roles only from server-controlled app metadata", async () => {
+  const adminUser = { id: "user-1", app_metadata: { roles: ["support", "ADMIN"] }, user_metadata: { roles: ["admin"] } };
+  assert.deepEqual(rolesForUser(adminUser), ["admin", "support"]);
+  const adminSession = requireRole({ authenticated: true, user: adminUser }, "admin");
+  assert.deepEqual(adminSession.roles, ["admin", "support"]);
+
+  assert.throws(() => requireRole({ authenticated: true, user: { id: "user-2", user_metadata: { roles: ["admin"] } } }, "admin"), (error) => {
+    assert.ok(error instanceof AuthorizationError);
+    assert.equal(error.code, "AUTH_FORBIDDEN");
+    assert.equal(error.status, 403);
+    return true;
+  });
+  await assert.rejects(
+    () => requireAdminSession({ request: { headers: { authorization: "Bearer token-123" } }, provider: {
+      getUser: async () => ({ id: "user-2", app_metadata: { roles: ["member"] } })
+    } }),
+    (error) => {
+      assert.equal(error.code, "AUTH_FORBIDDEN");
+      assert.equal(error.status, 403);
+      return true;
+    }
+  );
+  await assert.rejects(
+    () => requireAdminSession({ request: { headers: {} }, provider: { getUser: async () => adminUser } }),
+    (error) => {
+      assert.equal(error.code, "AUTH_REQUIRED");
+      assert.equal(error.status, 401);
+      return true;
+    }
+  );
 });

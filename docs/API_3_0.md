@@ -28,7 +28,7 @@ The repository also contains a fail-closed Supabase Auth adapter in `src/backend
 
 ## Identity and user routes
 
-With the default demo mode, registration, login, recovery, profile persistence and payout-destination writes remain disabled. With explicit `AUTH_MODE=supabase`, `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/recovery`, `GET /api/auth/google`, `GET /api/auth/session` and `POST /api/auth/logout` use the configured Auth provider and bearer boundary. Profile persistence, challenge ownership, eligibility and payout-destination writes remain unconnected and must not be treated as production-ready.
+With the default demo mode, registration, login, recovery, profile persistence and payout-destination writes remain disabled. With explicit `AUTH_MODE=supabase`, `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/recovery`, `GET /api/auth/google`, `GET /api/auth/session` and `POST /api/auth/logout` use the configured Auth provider and bearer boundary. Admin routes require an `admin` role in server-controlled Supabase `app_metadata`. Profile persistence, challenge ownership, eligibility and payout-destination writes remain unconnected; those operations fail closed with `PERSISTENCE_NOT_CONFIGURED` in Supabase mode.
 
 `GET /api/auth/session`, `POST /api/auth/logout`, `GET /api/users/me`, `GET /api/users/me/challenges`, and `GET /api/users/me/transactions` expose the synthetic session and its state.
 
@@ -48,4 +48,4 @@ The service modules in `src/backend/` define the replacement boundary:
 
 ## Production replacement requirements
 
-Before these routes can be connected to Supabase Auth/PostgreSQL or external providers, bind the adapter to a server-side session strategy, add schema validation, shared rate limiting, signed webhook verification against the raw body, durable idempotency records, transaction boundaries, role-based admin authorization, and audit logging. The SQL migration deliberately denies direct client access to authoritative financial tables.
+Before the remaining routes can be connected to Supabase Auth/PostgreSQL or external providers, add secure cookie/session handling, profile provisioning, schema validation, shared rate limiting, signed webhook verification against the raw body, durable idempotency records, transaction boundaries and audit logging. The SQL migration deliberately denies direct client access to authoritative financial tables.

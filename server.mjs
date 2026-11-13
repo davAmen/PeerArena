@@ -16,6 +16,7 @@ import {
 } from "./src/demo-engine.mjs";
 import { AuthProviderError, createAuthProviderFromEnv } from "./src/backend/auth.mjs";
 import { requireAuthenticatedSession, revokeAuthenticatedSession } from "./src/backend/auth-session.mjs";
+import { requireAdminSession } from "./src/backend/authorization.mjs";
 import { readRuntimeConfig } from "./src/backend/config.mjs";
 import { SlidingWindowRateLimiter, requestAddress } from "./src/backend/rate-limit.mjs";
 
@@ -68,6 +69,14 @@ function assertProductionAuthConfigured() {
   if (!authProvider.getCapabilities().configured) {
     throw new AuthProviderError("Production authentication is not configured.", { code: "AUTH_NOT_CONFIGURED", status: 503 });
   }
+}
+
+function productionPersistenceDisabled(response, resource) {
+  return sendJson(response, 503, {
+    error: `${resource} persistence is not configured.`,
+    code: "PERSISTENCE_NOT_CONFIGURED",
+    productionAuth: "SUPABASE"
+  });
 }
 
 async function readJson(request) {
@@ -154,6 +163,10 @@ async function handleApi(request, response, url) {
     if (request.method === "GET" && eventMatch) {
       return sendJson(response, 200, findEvent(decodeURIComponent(eventMatch[1])));
     }
+    if (productionAuthEnabled() && url.pathname.startsWith("/api/admin/")) {
+      assertProductionAuthConfigured();
+      await requireAdminSession({ request, provider: authProvider });
+    }
     if (request.method === "GET" && url.pathname === "/api/admin/overview") {
       return sendJson(response, 200, getAdminOverview(state));
     }
@@ -170,7 +183,7 @@ async function handleApi(request, response, url) {
       return sendJson(response, 200, { settlements: state.challenges.filter((challenge) => challenge.settlement).map((challenge) => ({ challengeId: challenge.id, ...challenge.settlement })) });
     }
     if (request.method === "GET" && url.pathname === "/api/admin/security") {
-      return sendJson(response, 200, { realMoneyGate: "BLOCKED", authentication: "DEMO_SESSION_ONLY", suspiciousActivity: [], providerAnomalies: [] });
+      return sendJson(response, 200, { realMoneyGate: "BLOCKED", authentication: productionAuthEnabled() ? "SUPABASE_BEARER_ADMIN" : "DEMO_SESSION_ONLY", suspiciousActivity: [], providerAnomalies: [] });
     }
     if (request.method === "GET" && url.pathname === "/api/auth/session") {
       if (productionAuthEnabled()) {
@@ -224,19 +237,48 @@ async function handleApi(request, response, url) {
       return sendJson(response, 200, { ok: true, demoMode: true });
     }
     if (request.method === "GET" && url.pathname === "/api/users/me") {
+      if (productionAuthEnabled()) {
+        assertProductionAuthConfigured();
+        const session = await requireAuthenticatedSession({ request, provider: authProvider });
+        return sendJson(response, 200, { user: session.user, profile: null, persistence: "NOT_CONFIGURED", productionAuth: "SUPABASE" });
+      }
       return sendJson(response, 200, { user: state.user });
     }
     if (request.method === "GET" && url.pathname === "/api/users/me/challenges") {
+      if (productionAuthEnabled()) {
+        assertProductionAuthConfigured();
+        await requireAuthenticatedSession({ request, provider: authProvider });
+        return productionPersistenceDisabled(response, "User challenge");
+      }
       return sendJson(response, 200, { challenges: state.challenges.filter((challenge) => challenge.creatorId === state.user.id || challenge.challengerId === state.user.id) });
     }
     if (request.method === "GET" && url.pathname === "/api/users/me/transactions") {
+      if (productionAuthEnabled()) {
+        assertProductionAuthConfigured();
+        await requireAuthenticatedSession({ request, provider: authProvider });
+        return productionPersistenceDisabled(response, "User transaction");
+      }
       return sendJson(response, 200, { transactions: state.transactions });
     }
     if (request.method === "PATCH" && url.pathname === "/api/users/me") {
+      if (productionAuthEnabled()) {
+        assertProductionAuthConfigured();
+        await requireAuthenticatedSession({ request, provider: authProvider });
+        return productionPersistenceDisabled(response, "Profile");
+      }
       return demoDisabled(response, "Profile persistence is not connected in the simulated demo.");
     }
     if (request.method === "POST" && url.pathname === "/api/users/me/payout-destination") {
+      if (productionAuthEnabled()) {
+        assertProductionAuthConfigured();
+        await requireAuthenticatedSession({ request, provider: authProvider });
+        return productionPersistenceDisabled(response, "Payout-destination");
+      }
       return demoDisabled(response, "Payout destinations are disabled until an approved provider and identity flow are configured.");
+    }
+    if (productionAuthEnabled() && (url.pathname === "/api/challenges" || url.pathname.startsWith("/api/challenges/"))) {
+      assertProductionAuthConfigured();
+      return productionPersistenceDisabled(response, "Challenge");
     }
     if (request.method === "GET" && url.pathname === "/api/challenges") {
       return sendJson(response, 200, { challenges: state.challenges.filter(publicChallenge) });
@@ -278,6 +320,11 @@ async function handleApi(request, response, url) {
     }
 
     if (request.method === "POST" && url.pathname === "/api/responsible/self-exclusion") {
+      if (productionAuthEnabled()) {
+        assertProductionAuthConfigured();
+        await requireAuthenticatedSession({ request, provider: authProvider });
+        return productionPersistenceDisabled(response, "Responsible-play");
+      }
       const body = await readJson(request);
       const responsible = setSelfExclusion(state, body.enabled);
       return sendJson(response, 200, { responsible, state });
@@ -292,6 +339,7 @@ async function handleApi(request, response, url) {
     if (request.method === "GET" && payoutMatch) return sendJson(response, 200, { payoutId: decodeURIComponent(payoutMatch[1]), status: "DISABLED", demoMode: true });
 
     if (request.method === "POST" && url.pathname === "/api/admin/reset") {
+      if (productionAuthEnabled()) return productionPersistenceDisabled(response, "Admin reset");
       state = createInitialState();
       return sendJson(response, 200, { state, reset: true });
     }
