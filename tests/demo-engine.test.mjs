@@ -24,6 +24,15 @@ test("prediction choices remain binary for the MVP markets", () => {
   assert.deepEqual(getPredictionChoices(event, "Match result"), ["Hearts of Oak", "Asante Kotoko"]);
 });
 
+test("demo state exposes a synthetic live fixture and participant-ready challenges", () => {
+  const state = createInitialState(NOW);
+  const live = state.events.find((event) => event.status === "LIVE");
+  assert.equal(live.id, "evt_lakers_celtics");
+  assert.deepEqual(live.live.scoreHome, 62);
+  assert.equal(state.challenges[0].participants.length, 1);
+  assert.equal(state.challenges[0].maxParticipants, 2);
+});
+
 test("creator stake is reserved and challenge is auditable", () => {
   const state = createInitialState(NOW);
   const before = state.user.balance;
@@ -53,6 +62,17 @@ test("acceptance matches a challenge and settlement pays the synthetic pool once
   assert.equal(settled.settlement.payout, 100);
   assert.equal(state.user.balance, before + 50);
   assert.equal(state.transactions[0].type, "DEMO_PAYOUT");
+});
+
+test("multiplayer pool acceptance records participants and grows the synthetic pool", () => {
+  const state = createInitialState(NOW);
+  const challenge = state.challenges.find((item) => item.id === "ch_open_hearts");
+  challenge.maxParticipants = 4;
+  challenge.challengeType = "MULTIPLAYER_POOL";
+  const accepted = acceptChallenge(state, challenge.id, NOW);
+  assert.equal(accepted.status, "ACTIVE");
+  assert.equal(accepted.participants.length, 2);
+  assert.equal(accepted.grossPool, 100);
 });
 
 test("void settlement refunds the user's reserved stake", () => {

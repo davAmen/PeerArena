@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 export const DEMO_CURRENCY = "DEMO";
 export const MAX_DEMO_STAKE = 1000;
+export const MAX_POOL_PARTICIPANTS = 8;
 
 export const CHALLENGE_STATES = Object.freeze([
   "CREATED",
@@ -127,10 +128,18 @@ export function createInitialState(timestamp = Date.now()) {
       home: "Boston Celtics",
       away: "Los Angeles Lakers",
       venue: "TD Garden",
-      kickoffAt: nowIso(timestamp + 24 * 60 * 60 * 1000),
-      status: "SCHEDULED",
+      kickoffAt: nowIso(timestamp - 42 * 60 * 1000),
+      status: "LIVE",
       dataSource: "Synthetic event feed",
-      dataConfidence: "DEMO"
+      dataConfidence: "DEMO",
+      live: {
+        scoreHome: 62,
+        scoreAway: 58,
+        period: "Q3",
+        elapsed: "06:42",
+        freshness: "LIVE · synthetic",
+        stats: { rebounds: "31–28", assists: "18–16", fouls: "9–11" }
+      }
     },
     {
       id: "evt_sinner_medvedev",
@@ -245,6 +254,15 @@ export function createInitialState(timestamp = Date.now()) {
     }
   ];
 
+  for (const challenge of challenges) {
+    challenge.maxParticipants = challenge.maxParticipants ?? 2;
+    challenge.challengeType = challenge.challengeType ?? (challenge.maxParticipants > 2 ? "MULTIPLAYER_POOL" : "ONE_VS_ONE");
+    challenge.participants = challenge.participants ?? [
+      { id: challenge.creatorId, name: challenge.creatorName, prediction: challenge.creatorPrediction, stake: challenge.stake, role: "CREATOR" },
+      ...(challenge.challengerId ? [{ id: challenge.challengerId, name: challenge.challengerName, prediction: challenge.challengerPrediction, stake: challenge.stake, role: "PARTICIPANT" }] : [])
+    ];
+  }
+
   return {
     demoMode: true,
     realMoneyEnabled: false,
@@ -333,6 +351,8 @@ export function createChallenge(state, input, timestamp = Date.now()) {
 
   const stake = amount(input.stake);
   ensure(state.user.balance >= stake, "Insufficient demo credits.");
+  const maxParticipants = Number(input.maxParticipants ?? 2);
+  ensure([2, 4, 6, MAX_POOL_PARTICIPANTS].includes(maxParticipants), "Choose a supported participant capacity.");
   const expiryHours = Math.min(Math.max(Number(input.expiryHours) || 24, 1), 72);
   const challenge = {
     id: id("ch"),
@@ -347,6 +367,9 @@ export function createChallenge(state, input, timestamp = Date.now()) {
     challengerPrediction: oppositePrediction(event, market, prediction),
     stake,
     grossPool: 0,
+    maxParticipants,
+    challengeType: maxParticipants > 2 ? "MULTIPLAYER_POOL" : "ONE_VS_ONE",
+    participants: [{ id: state.user.id, name: state.user.username, prediction, stake, role: "CREATOR" }],
     accessFee: 0,
     winningCommission: 0,
     visibility: input.visibility === "PRIVATE" ? "PRIVATE" : "PUBLIC",
@@ -367,17 +390,21 @@ export function acceptChallenge(state, challengeId, timestamp = Date.now()) {
   ensure(state.demoMode && !state.realMoneyEnabled, "Real-money mode is disabled in this demonstration.");
   ensure(!state.user.responsible.selfExcluded, "This demo account is self-excluded.");
   const challenge = challengeFor(state, challengeId);
-  ensure(challenge.status === "AWAITING_ACCEPTANCE", "This challenge is no longer open for acceptance.");
+  ensure(["AWAITING_ACCEPTANCE", "ACTIVE"].includes(challenge.status), "This challenge is no longer open for acceptance.");
   ensure(challenge.creatorId !== state.user.id, "You cannot accept your own challenge.");
   ensure(new Date(challenge.expiresAt).getTime() > timestamp, "This challenge has expired.");
   ensure(state.user.balance >= challenge.stake, "Insufficient demo credits to accept this challenge.");
+  challenge.participants ??= [{ id: challenge.creatorId, name: challenge.creatorName, prediction: challenge.creatorPrediction, stake: challenge.stake, role: "CREATOR" }];
+  ensure(!challenge.participants.some((participant) => participant.id === state.user.id), "You are already in this challenge.");
+  ensure(challenge.participants.length < (challenge.maxParticipants ?? 2), "This challenge is full.");
 
   state.user.balance = Math.round((state.user.balance - challenge.stake) * 100) / 100;
-  challenge.challengerId = state.user.id;
-  challenge.challengerName = state.user.username;
-  challenge.grossPool = Math.round(challenge.stake * 2 * 100) / 100;
+  challenge.challengerId ??= state.user.id;
+  challenge.challengerName ??= state.user.username;
+  challenge.participants.push({ id: state.user.id, name: state.user.username, prediction: challenge.challengerPrediction, stake: challenge.stake, role: "PARTICIPANT" });
+  challenge.grossPool = Math.round(challenge.participants.reduce((sum, participant) => sum + participant.stake, 0) * 100) / 100;
   challenge.acceptedAt = nowIso(timestamp);
-  challenge.status = "FUNDS_CONFIRMED";
+  challenge.status = (challenge.maxParticipants ?? 2) > 2 ? "ACTIVE" : "FUNDS_CONFIRMED";
   addTransaction(state, "DEMO_STAKE_RESERVED", -challenge.stake, `${challenge.title} · matching stake reserved`, { challengeId: challenge.id }, timestamp);
   addAudit(state, "CHALLENGE_ACCEPTED", { challengeId: challenge.id, grossPool: challenge.grossPool }, timestamp);
   return challenge;
@@ -386,21 +413,21 @@ export function acceptChallenge(state, challengeId, timestamp = Date.now()) {
 export function settleChallenge(state, challengeId, outcome, timestamp = Date.now()) {
   const challenge = challengeFor(state, challengeId);
   ensure(["ACTIVE", "FUNDS_CONFIRMED", "MATCHED", "AWAITING_VERIFICATION", "SUSPENDED"].includes(challenge.status), "Only matched demo challenges can be settled.");
-  ensure(challenge.challengerId, "A second participant is required before settlement.");
+  ensure(challenge.challengerId && (challenge.participants?.length ?? 2) >= 2, "A second participant is required before settlement.");
   ensure(["CREATOR_WINS", "CHALLENGER_WINS", "VOID"].includes(outcome), "Settlement outcome is invalid.");
 
   challenge.status = "AWAITING_VERIFICATION";
   const verifiedAt = nowIso(timestamp);
   if (outcome === "VOID") {
     challenge.status = "VOIDED";
-    const refunds = [
-      [challenge.creatorId, challenge.creatorName],
-      [challenge.challengerId, challenge.challengerName]
-    ];
-    for (const [participantId] of refunds) {
+    const refunds = (challenge.participants ?? [
+      { id: challenge.creatorId, name: challenge.creatorName, stake: challenge.stake },
+      { id: challenge.challengerId, name: challenge.challengerName, stake: challenge.stake }
+    ]).map((participant) => [participant.id, participant.name, participant.stake]);
+    for (const [participantId, , participantStake] of refunds) {
       if (participantId === state.user.id) {
-        state.user.balance = Math.round((state.user.balance + challenge.stake) * 100) / 100;
-        addTransaction(state, "DEMO_REFUND", challenge.stake, `${challenge.title} · voided market refund`, { challengeId: challenge.id }, timestamp);
+        state.user.balance = Math.round((state.user.balance + participantStake) * 100) / 100;
+        addTransaction(state, "DEMO_REFUND", participantStake, `${challenge.title} · voided market refund`, { challengeId: challenge.id }, timestamp);
       }
     }
     challenge.settlement = {
@@ -421,7 +448,8 @@ export function settleChallenge(state, challengeId, outcome, timestamp = Date.no
   const winnerId = creatorWins ? challenge.creatorId : challenge.challengerId;
   const winnerName = creatorWins ? challenge.creatorName : challenge.challengerName;
   const commission = 0;
-  const payout = Math.round((challenge.grossPool - commission) * 100) / 100;
+  const grossPool = challenge.grossPool || (challenge.participants ?? []).reduce((sum, participant) => sum + participant.stake, 0);
+  const payout = Math.round((grossPool - commission) * 100) / 100;
   challenge.status = "SETTLED";
   challenge.winningCommission = commission;
   challenge.payout = payout;
@@ -429,7 +457,7 @@ export function settleChallenge(state, challengeId, outcome, timestamp = Date.no
     outcome,
     winnerId,
     winnerName,
-    grossPool: challenge.grossPool,
+    grossPool,
     commission,
     payout,
     reference: `SET-DEMO-${challenge.id.slice(-6).toUpperCase()}`,

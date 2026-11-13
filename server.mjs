@@ -67,6 +67,13 @@ async function handleApi(request, response, url) {
     if (request.method === "GET" && url.pathname === "/api/state") {
       return sendJson(response, 200, state);
     }
+    if (request.method === "GET" && url.pathname === "/api/live") {
+      return sendJson(response, 200, {
+        source: "Synthetic event feed",
+        freshness: "DEMO",
+        events: state.events.filter((event) => event.status === "LIVE")
+      });
+    }
     if (request.method === "GET" && url.pathname === "/api/admin/overview") {
       return sendJson(response, 200, getAdminOverview(state));
     }

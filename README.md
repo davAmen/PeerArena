@@ -39,6 +39,8 @@ The admin route is a demonstration control surface only; it is not an authentica
 | `tests/demo-engine.test.mjs` | Unit tests for lifecycle, accounting and safety controls |
 | `docs/` | Feasibility, requirements, architecture, schema, API, security, operations and legal drafts |
 
+Directive 2.0 additions are mapped in `docs/DIRECTIVE_2_0_DELIVERY.md`. The redesigned home route is a responsive web experience; native React Native/Expo delivery remains a later production phase.
+
 ## Security boundary
 
 The demo is intentionally small and in-memory. It has no real authentication, persistent database, payment provider, licensed sports-data feed, identity provider, production secrets, or external notification service. Those integrations remain blocked until the legal, licensing, payment, data-provider and security gates in `docs/LEGAL_REVIEW_CHECKLIST.md` are independently cleared.

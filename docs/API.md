@@ -35,6 +35,8 @@ Response:
 
 `GET /api/admin/overview` returns queue, metrics, health and audit data for the demo admin screen.
 
+`GET /api/live` returns synthetic fixtures whose event status is `LIVE`, with a source label, freshness marker, score, period and statistics. It is a demonstration feed and must not be treated as an official settlement source.
+
 Production should expose scoped read models rather than the complete state object.
 
 ## Create a challenge

@@ -5,6 +5,8 @@ let offline = false;
 let selectedChallengeId = null;
 let selectedCreateEventId = null;
 let selectedCreateMarket = null;
+let authMode = null;
+let demoIdentity = "Demo visitor";
 let toastTimer = null;
 
 const marketCatalog = {
@@ -34,8 +36,24 @@ const iconPaths = {
   alert: '<path d="M10.3 4.6 2.7 18a2 2 0 0 0 1.7 3h15.2a2 2 0 0 0 1.7-3L13.7 4.6a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>',
   chart: '<path d="M4 19V5M4 19h16"/><path d="m7 15 3-4 3 2 4-6"/>',
   logout: '<path d="M10 17l5-5-5-5M15 12H3"/><path d="M21 19V5a2 2 0 0 0-2-2h-6"/>',
-  menu: '<path d="M4 6h16M4 12h16M4 18h16"/>'
+  menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+  play: '<circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4V8Z"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  zap: '<path d="m13 2-9 12h7l-1 8 9-12h-7l1-8Z"/>',
+  wallet: '<path d="M4 6a2 2 0 0 1 2-2h12v16H6a2 2 0 0 1-2-2V6Z"/><path d="M4 8h14a2 2 0 0 1 2 2v6H6a2 2 0 0 1-2-2V8Z"/><path d="M16 13h.01"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  trophy: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4v2a4 4 0 0 0 4 4M17 6h3v2a4 4 0 0 1-4 4"/>',
+  spark: '<path d="m12 3 1.5 6.5L20 11l-6.5 1.5L12 19l-1.5-6.5L4 11l6.5-1.5L12 3ZM19 17l.5 2.5L22 20l-2.5.5L19 23l-.5-2.5L16 20l2.5-.5L19 17Z"/>'
 };
+
+const sportGallery = [
+  ["Football", "18 live markets", "football"], ["Basketball", "9 open pools", "basketball"], ["Tennis", "7 fixtures", "tennis"],
+  ["Hockey", "Coming soon", "hockey"], ["Swimming", "Coming soon", "swimming"], ["Athletics", "Coming soon", "athletics"],
+  ["Boxing", "Coming soon", "boxing"], ["Cycling", "Coming soon", "cycling"], ["Motorsport", "Coming soon", "motorsport"],
+  ["Snooker", "Coming soon", "snooker"], ["Table tennis", "Coming soon", "table-tennis"], ["Badminton", "Coming soon", "badminton"],
+  ["Volleyball", "Coming soon", "volleyball"], ["Cricket", "Coming soon", "cricket"], ["Rugby", "Coming soon", "rugby"],
+  ["Horse racing", "Review required", "horse-racing"], ["Darts", "Coming soon", "darts"], ["Esports", "Review required", "esports"]
+];
 
 function icon(name, className = "") {
   return `<svg class="icon ${className}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${iconPaths[name] ?? iconPaths.help}</svg>`;
@@ -243,6 +261,73 @@ function routeLabel(value) {
 
 function eyebrow(text) { return `<div class="eyebrow"><span class="eyebrow-dot"></span>${text}</div>`; }
 
+function renderLandingPage() {
+  const live = state.events.find((event) => event.status === "LIVE") ?? state.events[0];
+  const open = state.challenges.filter((challenge) => challenge.status === "AWAITING_ACCEPTANCE");
+  const liveScore = live.live ?? { scoreHome: 0, scoreAway: 0, period: "PREVIEW", elapsed: "—", freshness: "SYNTHETIC" };
+  return `
+    <div class="landing-page">
+      <header class="landing-nav">
+        <button class="landing-brand" data-nav="home" aria-label="PeerArena home"><span class="landing-brand-mark"><i></i><i></i><i></i></span><span><strong>PEERARENA</strong><small>Challenge the prediction</small></span></button>
+        <nav class="landing-links" aria-label="Landing page navigation">
+          <button data-nav="live">Live center</button><button data-nav="marketplace">Challenges</button><button data-nav="home" data-scroll-target="sports">Sports</button><button data-nav="responsible">Play safe</button>
+        </nav>
+        <div class="landing-actions"><button class="landing-signin" data-open-auth="signin">Sign in</button><button class="landing-cta" data-open-auth="signup">Create demo account ${icon("arrow")}</button></div>
+      </header>
+      <div class="landing-demo-strip"><span class="demo-pulse"></span><strong>DEMONSTRATION MODE</strong><span>Non-redeemable credits · no deposits · no withdrawals</span><button data-nav="help">Read the boundaries ${icon("arrow")}</button></div>
+      <main>
+        <section class="landing-hero">
+          <div class="hero-noise"></div><div class="hero-glow hero-glow-one"></div><div class="hero-glow hero-glow-two"></div>
+          <div class="landing-hero-copy">
+            <div class="landing-kicker"><span>${icon("zap")}</span> The social prediction arena</div>
+            <h1>YOUR PREDICTION.<br /><em>YOUR CHALLENGE.</em></h1>
+            <p>Challenge the prediction. Let the result decide. Create a clear call, match your side with other fans, follow the action and see the verified result.</p>
+            <div class="landing-hero-actions"><button class="landing-button landing-button-lime" data-nav="marketplace">Explore challenges ${icon("arrow")}</button><button class="landing-button landing-button-outline" data-open-auth="signup">Create a demo account ${icon("plus")}</button></div>
+            <div class="landing-trust-row"><span>${icon("shield")} Rules locked before matching</span><span>${icon("check")} Synthetic funds only</span><span>${icon("users")} Multiplayer-ready</span></div>
+          </div>
+          <div class="landing-hero-visual" aria-label="Original fictional football rivalry concept art. Rights clearance is required for any identifiable player imagery.">
+            <div class="stadium-lights"><i></i><i></i><i></i><i></i><i></i></div><div class="stadium-grid"></div><div class="stadium-pitch"></div>
+            <div class="hero-player hero-player-left"><div class="player-head"></div><div class="player-body"></div><div class="player-leg player-leg-one"></div><div class="player-leg player-leg-two"></div><span>TECHNIQUE</span></div>
+            <div class="hero-player hero-player-right"><div class="player-head"></div><div class="player-body"></div><div class="player-leg player-leg-one"></div><div class="player-leg player-leg-two"></div><span>FOCUS</span></div>
+            <div class="hero-ball"></div><div class="hero-score-card"><small>LIVE SIMULATION</small><strong>${escapeHtml(live.home)} <b>${liveScore.scoreHome}</b></strong><strong>${escapeHtml(live.away)} <b>${liveScore.scoreAway}</b></strong><span>${escapeHtml(liveScore.period)} · ${escapeHtml(liveScore.elapsed)} · ${escapeHtml(liveScore.freshness)}</span></div>
+            <div class="hero-rights-note">ORIGINAL CONCEPT ART · NO PLAYER LIKENESS USED</div>
+          </div>
+        </section>
+        <section class="landing-ticker" aria-label="Live sports ticker"><div class="ticker-live"><span></span> LIVE NOW</div><div class="ticker-match"><strong>${escapeHtml(live.home)}</strong><b>${liveScore.scoreHome}</b><span>—</span><b>${liveScore.scoreAway}</b><strong>${escapeHtml(live.away)}</strong></div><div class="ticker-detail">${escapeHtml(live.league)} · ${escapeHtml(liveScore.period)} · ${escapeHtml(liveScore.elapsed)}</div><button data-nav="live">Open match center ${icon("arrow")}</button></section>
+        <section class="landing-section landing-sports" id="sports"><div class="landing-section-heading"><div><span class="landing-eyebrow">FIND YOUR ARENA</span><h2>Every sport has a story.</h2><p>Explore approved categories and synthetic fixtures. Availability is always subject to licensing and integrity review.</p></div><button class="landing-text-link" data-nav="live">See live events ${icon("arrow")}</button></div><div class="sport-gallery">${sportGallery.map(renderLandingSportCard).join("")}</div></section>
+        <section class="landing-section landing-how"><div class="landing-section-heading centered"><span class="landing-eyebrow">HOW PEERARENA WORKS</span><h2>Make a call. Make it clear.</h2><p>Three simple steps. One shared rulebook. No hidden odds or moving goalposts.</p></div><div class="how-steps"><article><span class="how-number">01</span><div class="how-icon violet">${icon("plus")}</div><h3>Create your challenge</h3><p>Choose an event, lock a binary prediction, set a stake and publish the terms.</p></article><div class="step-line"></div><article><span class="how-number">02</span><div class="how-icon lime">${icon("users")}</div><h3>Match the moment</h3><p>Invite friends or let eligible players take the opposing side in a public pool.</p></article><div class="step-line"></div><article><span class="how-number">03</span><div class="how-icon coral">${icon("trophy")}</div><h3>Let the result decide</h3><p>A verified outcome applies the locked rules and creates a traceable result.</p></article></div></section>
+        <section class="landing-section landing-board"><div class="landing-section-heading"><div><span class="landing-eyebrow">THE MARKETPLACE</span><h2>Calls already in play.</h2><p>See what the community is challenging in the simulated arena.</p></div><button class="landing-text-link" data-nav="marketplace">Explore all challenges ${icon("arrow")}</button></div><div class="landing-challenge-grid">${open.slice(0, 3).map(renderLandingChallenge).join("")}</div></section>
+        <section class="landing-section landing-live-panel"><div class="live-panel-visual"><div class="live-ring ring-one"></div><div class="live-ring ring-two"></div><div class="live-score-large"><span>Q3</span><strong>${liveScore.scoreHome}</strong><small>:</small><strong>${liveScore.scoreAway}</strong><span>06:42</span></div><div class="live-stat-chip chip-a">REBOUNDS <b>${live.live?.stats?.rebounds ?? "31–28"}</b></div><div class="live-stat-chip chip-b">ASSISTS <b>${live.live?.stats?.assists ?? "18–16"}</b></div></div><div class="live-panel-copy"><span class="landing-eyebrow">LIVE MATCH CENTER</span><h2>Follow the game.<br /><em>Read the moment.</em></h2><p>Live status, score, period and freshness indicators make the boundary between a known result and an open prediction visible.</p><div class="live-signal"><span></span><div><strong>${escapeHtml(live.home)} vs ${escapeHtml(live.away)}</strong><small>${escapeHtml(live.league)} · ${escapeHtml(liveScore.freshness)}</small></div></div><button class="landing-button landing-button-lime" data-nav="live">Open live center ${icon("arrow")}</button></div></section>
+        <section class="landing-section landing-multiplayer"><div class="multi-copy"><span class="landing-eyebrow">MULTIPLAYER BY DESIGN</span><h2>Your people.<br /><em>Your pool.</em></h2><p>Go one-versus-one, build a private group or open a shared prediction pool. Capacity, entry deadline, winner formula and void conditions belong in the rules before anyone joins.</p><div class="multi-pills"><span>${icon("users")} Up to 8 demo participants</span><span>${icon("lock")} Private invite links</span><span>${icon("trophy")} Shared-winner ready</span></div><button class="landing-button landing-button-outline" data-nav="create">Build a challenge ${icon("plus")}</button></div><div class="multi-visual"><div class="multi-orbit orbit-a"></div><div class="multi-orbit orbit-b"></div><div class="multi-avatar avatar-a">KM</div><div class="multi-avatar avatar-b">AB</div><div class="multi-avatar avatar-c">NS</div><div class="multi-avatar avatar-d">+</div><div class="multi-pool-card"><small>POOL CAPACITY</small><strong>04 / 08</strong><span>Rules locked · synthetic</span></div></div></section>
+        <section class="landing-section landing-trust"><div class="landing-section-heading centered"><span class="landing-eyebrow">BUILT FOR TRUST</span><h2>Entertainment with guardrails.</h2><p>The demo shows the architecture boundaries that must exist before any regulated launch.</p></div><div class="trust-cards"><article><div class="trust-icon violet">${icon("wallet")}</div><h3>Payments are gated</h3><p>Mobile Money and bank adapters are designed as approved-provider integrations. No wallet, PIN or withdrawal is connected here.</p><button data-nav="account">View account controls ${icon("arrow")}</button></article><article><div class="trust-icon lime">${icon("shield")}</div><h3>Security is visible</h3><p>Immutable-style audit references, rule locking, responsible play and server-side settlement keep the product honest.</p><button data-nav="admin">See the control room ${icon("arrow")}</button></article><article><div class="trust-icon coral">${icon("globe")}</div><h3>Jurisdiction comes first</h3><p>Every market, country, provider and fee remains subject to legal review, licensing and operational approval.</p><button data-nav="help">Read the boundary notes ${icon("arrow")}</button></article></div></section>
+        <section class="landing-section landing-safety"><div><span class="landing-eyebrow">PLAY WITH CLARITY</span><h2>Know the line<br /><em>before you cross it.</em></h2></div><div><p>PeerArena never presents a prediction as guaranteed income. The demo uses fictional credits, keeps safety controls close and blocks new challenge actions when self-exclusion is enabled.</p><button class="landing-button landing-button-dark" data-nav="responsible">Open responsible play ${icon("arrow")}</button></div></section>
+        <section class="landing-section landing-faq"><div class="landing-section-heading"><div><span class="landing-eyebrow">NEED TO KNOW</span><h2>Questions, answered.</h2></div><button class="landing-text-link" data-nav="help">Visit help center ${icon("arrow")}</button></div><div class="landing-faq-grid"><details open><summary>Is this real-money betting?</summary><p>No. This build uses synthetic DEMO credits that cannot be purchased, transferred, withdrawn or exchanged for value.</p></details><details><summary>Can I invite friends?</summary><p>Private invite links are represented in the demo. A production invite must still apply identity, age, jurisdiction and market rules.</p></details><details><summary>Where do results come from?</summary><p>The demo uses a synthetic feed. Production settlement requires an approved data provider, freshness controls, discrepancy handling and a review policy.</p></details><details><summary>Are Messi or Ronaldo featured?</summary><p>No identifiable player likeness is used. Any future commercial imagery requires rights clearance and must not imply endorsement.</p></details></div></section>
+        <section class="landing-support"><div class="support-orb">${icon("help")}</div><div><span class="landing-eyebrow">WE ARE CLOSE AT HAND</span><h2>Need a human?</h2><p>Reach the demo support desk or explore the product language before you make your next call.</p></div><button class="landing-button landing-button-lime" data-nav="help">Open help center ${icon("arrow")}</button></section>
+      </main>
+      <footer class="landing-footer"><div class="landing-footer-brand"><span class="landing-brand-mark"><i></i><i></i><i></i></span><div><strong>PEERARENA</strong><small>Challenge the prediction.</small></div></div><div class="landing-footer-links"><button data-nav="marketplace">Challenges</button><button data-nav="live">Live center</button><button data-nav="responsible">Responsible play</button><button data-nav="help">Help</button></div><div class="landing-footer-note">DEMO ONLY · GHANA PILOT CONCEPT<br />No deposits · no withdrawals · no monetary value</div></footer>
+      <div id="toast-container"></div>
+      ${renderModal()}
+    </div>
+  `;
+}
+
+function renderLandingSportCard([name, meta, slug], index) {
+  const available = !meta.includes("Coming soon") && !meta.includes("Review");
+  return `<button class="sport-gallery-card sport-tone-${index % 6} ${available ? "available" : "unavailable"}" data-nav="${available ? "live" : "help"}"><span class="sport-art sport-art-${slug}"><i></i><b>${name.slice(0, 1)}</b></span><span class="sport-card-copy"><strong>${escapeHtml(name)}</strong><small>${escapeHtml(meta)}</small></span><span class="sport-card-arrow">${available ? icon("arrow") : icon("lock")}</span></button>`;
+}
+
+function renderLandingChallenge(challenge) {
+  const event = eventFor(challenge.eventId);
+  const pool = challenge.grossPool || challenge.stake * 2;
+  const capacity = challenge.maxParticipants ?? 2;
+  return `<article class="landing-challenge"><div class="landing-challenge-top"><span class="challenge-live-dot"></span><span>${escapeHtml(event?.sport ?? "Sport")} · ${escapeHtml(challenge.challengeType === "MULTIPLAYER_POOL" ? "Pool" : "1 v 1")}</span><span>${relativeTime(challenge.expiresAt)}</span></div><button class="landing-challenge-title" data-open-challenge="${challenge.id}"><strong>${escapeHtml(challenge.title)}</strong><span>${escapeHtml(challenge.market)}</span></button><div class="landing-sides"><span><small>${escapeHtml(challenge.creatorName)}</small><b>${escapeHtml(challenge.creatorPrediction)}</b></span><em>VS</em><span><small>Open side</small><b>${escapeHtml(challenge.challengerPrediction)}</b></span></div><div class="landing-challenge-foot"><span>Pool <b>${formatAmount(pool)}</b></span><span>${challenge.participants?.length ?? 1} / ${capacity} joined</span><button data-open-challenge="${challenge.id}">View call ${icon("arrow")}</button></div></article>`;
+}
+
+function renderAuthModal() {
+  const signup = authMode === "signup";
+  return `<div class="modal-backdrop auth-backdrop" data-auth-close><section class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title"><button class="modal-close" data-auth-close aria-label="Close">×</button><div class="auth-brand"><span class="landing-brand-mark"><i></i><i></i><i></i></span><span>PEERARENA</span></div><span class="landing-eyebrow">${signup ? "JOIN THE ARENA" : "WELCOME BACK"}</span><h2 id="auth-title">${signup ? "Create your demo identity." : "Sign in to your demo."}</h2><p>Experience the product with fictional credits. Identity, eligibility and payments stay disabled in this build.</p><form id="auth-form"><label>Preferred username${signup ? "<input name=\"username\" required placeholder=\"e.g. AccraGunner\" />" : ""}</label><label>Email<input name="email" type="email" required placeholder="you@example.com" /></label><label>Password<input name="password" type="password" minlength="8" required placeholder="8+ characters" /></label><button class="landing-button landing-button-lime auth-submit" type="submit">${signup ? "Create demo account" : "Continue to demo"} ${icon("arrow")}</button></form><button class="google-demo-button" data-demo-google>${icon("globe")} Continue with Google <small>demo architecture only</small></button><div class="auth-switch">${signup ? "Already have a demo identity?" : "New to PeerArena?"} <button data-open-auth="${signup ? "signin" : "signup"}">${signup ? "Sign in" : "Create an account"}</button></div><div class="auth-disclosure">${icon("shield")} No password or identity record leaves this browser in the demo.</div></section></div>`;
+}
+
 function renderHome() {
   const active = state.challenges.filter((challenge) => ["ACTIVE", "FUNDS_CONFIRMED"].includes(challenge.status)).length;
   const open = state.challenges.filter((challenge) => challenge.status === "AWAITING_ACCEPTANCE").length;
@@ -293,6 +378,13 @@ function renderLive() {
   return `<div class="page-heading"><div>${eyebrow("Objective event feed")}<h1>Live events</h1><p>Browse synthetic events and the markets that are currently open for demo challenges.</p></div><div class="heading-actions"><span class="feed-status"><span></span> Feed healthy</span><button class="button button-primary" data-nav="create">Create challenge ${icon("plus")}</button></div></div><div class="filter-bar"><div class="filter-tabs"><button class="filter-tab active">All events</button><button class="filter-tab">Football</button><button class="filter-tab">Basketball</button><button class="filter-tab">Tennis</button></div><span class="filter-note">${state.events.length} synthetic fixtures · no live-money markets</span></div><div class="event-grid">${state.events.map(renderEventCard).join("")}</div>`;
 }
 
+function renderLiveUpgraded() {
+  const live = state.events.find((event) => event.status === "LIVE");
+  if (!live) return renderLive();
+  const score = live.live ?? { scoreHome: 0, scoreAway: 0, period: "LIVE", elapsed: "—", freshness: "SYNTHETIC" };
+  return `<section class="live-route-card"><div><span class="live-route-kicker"><span></span> LIVE MATCH CENTER · SYNTHETIC FEED</span><h2>${escapeHtml(live.home)} <em>${score.scoreHome}</em><small>—</small><em>${score.scoreAway}</em> ${escapeHtml(live.away)}</h2><p>${escapeHtml(live.league)} · ${escapeHtml(score.period)} · ${escapeHtml(score.elapsed)} · ${escapeHtml(score.freshness)}</p></div><div class="live-route-stats"><span>Rebounds <b>${escapeHtml(live.live?.stats?.rebounds ?? "—")}</b></span><span>Assists <b>${escapeHtml(live.live?.stats?.assists ?? "—")}</b></span><span>Provider <b>synthetic</b></span></div><div class="live-route-note">${icon("shield")} Markets suspend automatically when a production feed is stale or contradictory.</div></section>${renderLive()}`;
+}
+
 function renderEventCard(event) {
   const challenges = state.challenges.filter((challenge) => challenge.eventId === event.id && challenge.status === "AWAITING_ACCEPTANCE");
   return `<article class="event-card"><div class="event-card-top"><span class="sport-label"><span class="sport-dot ${event.sport.toLowerCase()}"></span>${escapeHtml(event.sport)}</span><span class="event-time">${relativeTime(event.kickoffAt)}</span></div><div class="league-label">${escapeHtml(event.league)}</div><div class="matchup"><div><strong>${escapeHtml(event.home)}</strong><small>Home</small></div><span class="versus">VS</span><div class="align-right"><strong>${escapeHtml(event.away)}</strong><small>Away</small></div></div><div class="event-card-bottom"><span>${challenges.length} open challenge${challenges.length === 1 ? "" : "s"}</span><button class="inline-link" data-nav="marketplace">View markets ${icon("arrow")}</button></div></article>`;
@@ -325,6 +417,10 @@ function renderCreate() {
   selectedCreateEventId = event.id;
   selectedCreateMarket = market;
   return `<div class="page-heading create-heading"><div>${eyebrow("Lock the terms first")}<h1>Create a challenge</h1><p>Set one clear binary question. Your synthetic stake is reserved when you publish.</p></div><div class="create-gate"><div class="gate-icon">${icon("lock")}</div><div><strong>Demo gate active</strong><span>Real-money entry is not available.</span></div></div></div><div class="create-layout"><form class="panel create-form" id="create-form"><div class="form-section"><div class="form-section-title"><span class="form-number">01</span><div><strong>Choose the event</strong><span>Only synthetic fixtures are available in this build.</span></div></div><label class="field-label" for="create-event">Event</label><select class="field-control" id="create-event" name="eventId">${state.events.map((item) => `<option value="${item.id}" ${item.id === event.id ? "selected" : ""}>${escapeHtml(item.home)} vs ${escapeHtml(item.away)} · ${escapeHtml(item.league)}</option>`).join("")}</select></div><div class="form-section"><div class="form-section-title"><span class="form-number">02</span><div><strong>Write the question</strong><span>Binary markets keep the first release easy to verify.</span></div></div><div class="field-grid"><div><label class="field-label" for="create-market">Market</label><select class="field-control" id="create-market" name="market">${markets.map((item) => `<option ${item === market ? "selected" : ""}>${escapeHtml(item)}</option>`).join("")}</select></div><div><label class="field-label" for="create-prediction">Your side</label><select class="field-control" id="create-prediction" name="prediction">${predictions.map((item) => `<option>${escapeHtml(item)}</option>`).join("")}</select></div></div></div><div class="form-section"><div class="form-section-title"><span class="form-number">03</span><div><strong>Set your stake</strong><span>Your stake is reserved from the demo balance.</span></div></div><div class="stake-input-wrap"><span class="currency-prefix">DEMO</span><input class="stake-input" id="create-stake" name="stake" type="number" min="1" max="1000" step="0.01" value="25" required /><span class="stake-hint">Max 1,000</span></div><div class="quick-stakes"><button type="button" data-stake="10">10</button><button type="button" data-stake="25">25</button><button type="button" data-stake="50">50</button><button type="button" data-stake="100">100</button></div></div><div class="form-section last-section"><div class="form-section-title"><span class="form-number">04</span><div><strong>Choose visibility</strong><span>Private links still follow all eligibility rules in a regulated product.</span></div></div><div class="visibility-options"><label class="radio-card selected"><input type="radio" name="visibility" value="PUBLIC" checked /><span>${icon("compass")}</span><strong>Public</strong><small>Show in marketplace</small></label><label class="radio-card"><input type="radio" name="visibility" value="PRIVATE" /><span>${icon("lock")}</span><strong>Private</strong><small>Invite by link</small></label></div></div><div class="form-actions"><button class="button button-primary" type="submit">Publish demo challenge ${icon("arrow")}</button><button class="button button-ghost" type="button" data-nav="marketplace">Cancel</button></div></form><aside class="create-summary"><div class="summary-head"><span>Challenge preview</span><span class="status-pill status-created"><span></span>Draft</span></div><div class="preview-match"><div class="preview-league">${escapeHtml(event.league)}</div><h3>${escapeHtml(event.home)} <span>vs</span> ${escapeHtml(event.away)}</h3><p>${formatDate(event.kickoffAt)} · ${escapeHtml(event.venue)}</p></div><div class="preview-question"><span>${escapeHtml(market)}</span><div><strong>${escapeHtml(predictions[0])}</strong><span>vs</span><strong>${escapeHtml(predictions[1])}</strong></div></div><div class="summary-rows"><div><span>Your stake</span><strong id="preview-stake">25.00 DEMO</strong></div><div><span>Access fee</span><strong>0.00 DEMO</strong></div><div><span>Winning commission</span><strong>0.00 DEMO</strong></div><div class="summary-total"><span>Pool if matched</span><strong id="preview-pool">50.00 DEMO</strong></div></div><div class="summary-disclosure">${icon("shield")} Fees are shown before confirmation. This demonstration uses no money, custody, or external payment rail.</div></aside></div>`;
+}
+
+function renderPoolControls() {
+  return `<div class="pool-config"><label class="field-label" for="create-capacity">Challenge format</label><select class="field-control" id="create-capacity" name="maxParticipants"><option value="2">One versus one · 2 players</option><option value="4">Multiplayer pool · up to 4</option><option value="8">Multiplayer pool · up to 8</option></select><span>${icon("users")} Pool capacity and winner rules are locked before anyone joins.</span></div>`;
 }
 
 function renderMyChallenges() {
@@ -369,6 +465,7 @@ function getLocalOverview() {
 }
 
 function renderModal() {
+  if (authMode) return renderAuthModal();
   const challenge = selectedChallengeId ? challengeFor(selectedChallengeId) : null;
   if (!challenge) return "";
   const event = eventFor(challenge.eventId);
@@ -378,10 +475,14 @@ function renderModal() {
 }
 
 function render() {
+  if (route() === "home") {
+    app.innerHTML = renderLandingPage();
+    return;
+  }
   let content = renderHome();
-  if (route() === "live") content = renderLive();
+  if (route() === "live") content = renderLiveUpgraded();
   if (route() === "marketplace") content = renderMarketplace();
-  if (route() === "create") content = renderCreate();
+  if (route() === "create") content = renderCreate().replace('<div class="form-actions">', `${renderPoolControls()}<div class="form-actions">`);
   if (route() === "my-challenges") content = renderMyChallenges();
   if (route() === "transactions") content = renderTransactions();
   if (route() === "responsible") content = renderResponsible();
@@ -399,6 +500,25 @@ function refreshMarketplaceFilter() {
 }
 
 app.addEventListener("click", async (event) => {
+  const authOpen = event.target.closest("[data-open-auth]");
+  if (authOpen) {
+    event.preventDefault();
+    authMode = authOpen.dataset.openAuth;
+    selectedChallengeId = null;
+    render();
+    return;
+  }
+  const authClose = event.target.closest(".modal-close[data-auth-close]") || event.target.matches("[data-auth-close]");
+  if (authClose) {
+    authMode = null;
+    render();
+    return;
+  }
+  const googleDemo = event.target.closest("[data-demo-google]");
+  if (googleDemo) {
+    notify("Google Sign-In is designed but disabled in the synthetic demo.", "info");
+    return;
+  }
   const menu = event.target.closest(".mobile-menu");
   if (menu) {
     document.querySelector(".app-shell")?.classList.toggle("menu-open");
@@ -407,6 +527,10 @@ app.addEventListener("click", async (event) => {
   const nav = event.target.closest("[data-nav]");
   if (nav) {
     event.preventDefault();
+    if (nav.dataset.scrollTarget && route() === "home") {
+      document.getElementById(nav.dataset.scrollTarget)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
     location.hash = nav.dataset.nav;
     return;
   }
@@ -462,6 +586,18 @@ app.addEventListener("click", async (event) => {
 });
 
 app.addEventListener("submit", async (event) => {
+  if (event.target.id === "auth-form") {
+    event.preventDefault();
+    const form = new FormData(event.target);
+    const username = String(form.get("username") || "").trim();
+    const email = String(form.get("email") || "").trim();
+    demoIdentity = username || email.split("@")[0] || "Demo visitor";
+    const message = authMode === "signup" ? `Demo identity created for ${demoIdentity}.` : `Welcome back, ${demoIdentity}.`;
+    authMode = null;
+    render();
+    notify(`${message} Production authentication is not connected.`, "success");
+    return;
+  }
   if (event.target.id !== "create-form") return;
   event.preventDefault();
   const form = new FormData(event.target);
@@ -471,6 +607,7 @@ app.addEventListener("submit", async (event) => {
     prediction: form.get("prediction"),
     stake: form.get("stake"),
     visibility: form.get("visibility"),
+    maxParticipants: form.get("maxParticipants"),
     expiryHours: 24
   }, "Challenge published. Your demo stake is reserved.");
   if (result) location.hash = "my-challenges";
