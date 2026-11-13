@@ -14,11 +14,16 @@ import {
   setSelfExclusion,
   settleChallenge
 } from "./src/demo-engine.mjs";
+import { AuthProviderError, createAuthProviderFromEnv } from "./src/backend/auth.mjs";
+import { requireAuthenticatedSession, revokeAuthenticatedSession } from "./src/backend/auth-session.mjs";
+import { readRuntimeConfig } from "./src/backend/config.mjs";
 import { SlidingWindowRateLimiter, requestAddress } from "./src/backend/rate-limit.mjs";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const distRoot = path.join(projectRoot, "dist");
 let state = createInitialState();
+const runtimeConfig = readRuntimeConfig();
+const authProvider = createAuthProviderFromEnv();
 const apiRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 120 });
 const mutationRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 30 });
 
@@ -48,7 +53,21 @@ function sendJson(response, status, payload) {
 }
 
 function sendError(response, status, error) {
-  sendJson(response, status, { error: error instanceof Error ? error.message : String(error) });
+  const actualStatus = Number.isInteger(error?.status) ? error.status : status;
+  const payload = { error: error instanceof Error ? error.message : String(error) };
+  if (error?.code) payload.code = error.code;
+  sendJson(response, actualStatus, payload);
+}
+
+function productionAuthEnabled() {
+  return runtimeConfig.authMode === "supabase";
+}
+
+function assertProductionAuthConfigured() {
+  if (!productionAuthEnabled()) return;
+  if (!authProvider.getCapabilities().configured) {
+    throw new AuthProviderError("Production authentication is not configured.", { code: "AUTH_NOT_CONFIGURED", status: 503 });
+  }
 }
 
 async function readJson(request) {
@@ -154,12 +173,54 @@ async function handleApi(request, response, url) {
       return sendJson(response, 200, { realMoneyGate: "BLOCKED", authentication: "DEMO_SESSION_ONLY", suspiciousActivity: [], providerAnomalies: [] });
     }
     if (request.method === "GET" && url.pathname === "/api/auth/session") {
+      if (productionAuthEnabled()) {
+        assertProductionAuthConfigured();
+        const session = await requireAuthenticatedSession({ request, provider: authProvider });
+        return sendJson(response, 200, { authenticated: true, demoMode: false, user: session.user, productionAuth: "SUPABASE" });
+      }
       return sendJson(response, 200, { authenticated: true, demoMode: true, user: state.user, productionAuth: "NOT_CONFIGURED" });
     }
-    if (request.method === "POST" && ["/api/auth/register", "/api/auth/recovery"].includes(url.pathname)) {
+    if (request.method === "POST" && url.pathname === "/api/auth/register") {
+      if (productionAuthEnabled()) {
+        assertProductionAuthConfigured();
+        const body = await readJson(request);
+        const auth = await authProvider.signUp({ email: body.email, password: body.password, metadata: body.metadata, redirectTo: body.redirectTo });
+        return sendJson(response, 201, { auth, productionAuth: "SUPABASE" });
+      }
       return demoDisabled(response, "Production authentication is not connected; use the demo identity walkthrough.");
     }
+    if (request.method === "POST" && url.pathname === "/api/auth/login") {
+      if (productionAuthEnabled()) {
+        assertProductionAuthConfigured();
+        const body = await readJson(request);
+        const auth = await authProvider.signInWithPassword({ email: body.email, password: body.password });
+        return sendJson(response, 200, { auth, productionAuth: "SUPABASE" });
+      }
+      return demoDisabled(response, "Production authentication is not connected; use the demo identity walkthrough.");
+    }
+    if (request.method === "POST" && url.pathname === "/api/auth/recovery") {
+      if (productionAuthEnabled()) {
+        assertProductionAuthConfigured();
+        const body = await readJson(request);
+        await authProvider.requestPasswordRecovery({ email: body.email, redirectTo: body.redirectTo });
+        return sendJson(response, 202, { ok: true, productionAuth: "SUPABASE" });
+      }
+      return demoDisabled(response, "Production authentication is not connected; use the demo identity walkthrough.");
+    }
+    if (request.method === "GET" && url.pathname === "/api/auth/google") {
+      if (productionAuthEnabled()) {
+        assertProductionAuthConfigured();
+        const redirectTo = url.searchParams.get("redirectTo") ?? undefined;
+        return sendJson(response, 200, { provider: "google", url: authProvider.getGoogleOAuthUrl({ redirectTo }), productionAuth: "SUPABASE" });
+      }
+      return demoDisabled(response, "Google authentication is not connected in the simulated demo.");
+    }
     if (request.method === "POST" && url.pathname === "/api/auth/logout") {
+      if (productionAuthEnabled()) {
+        assertProductionAuthConfigured();
+        const result = await revokeAuthenticatedSession({ request, provider: authProvider });
+        return sendJson(response, 200, { ...result, productionAuth: "SUPABASE" });
+      }
       return sendJson(response, 200, { ok: true, demoMode: true });
     }
     if (request.method === "GET" && url.pathname === "/api/users/me") {

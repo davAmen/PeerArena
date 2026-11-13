@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { realMoneyGate } from "../src/backend/config.mjs";
+import { readRuntimeConfig, realMoneyGate } from "../src/backend/config.mjs";
 import {
   assertBalanced,
   calculateSharedPoolPayout,
@@ -114,6 +114,11 @@ test("real-money activation is default-deny even when an individual flag is set"
   });
   assert.equal(gate.enabled, false);
   assert.match(gate.blockers.join(" "), /safeguarding/);
+});
+
+test("runtime configuration defaults to synthetic auth and requires explicit Supabase mode", () => {
+  assert.equal(readRuntimeConfig({}).authMode, "demo");
+  assert.equal(readRuntimeConfig({ AUTH_MODE: "supabase" }).authMode, "supabase");
 });
 
 test("rate limiter returns retry metadata and resets after its window", () => {

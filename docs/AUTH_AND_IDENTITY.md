@@ -1,6 +1,6 @@
 # Authentication and identity architecture
 
-**Current state:** demonstration identity remains the only identity used by the running local service. A fail-closed Supabase Auth adapter now exists in `src/backend/auth.mjs`, but it is not bound to the demo routes and remains disabled unless a Supabase URL and anon key are supplied. The browser still does not create a production account, persist a password, verify a phone, call Google, or determine eligibility.
+**Current state:** demonstration identity remains the default identity used by the running local service. A fail-closed Supabase Auth adapter and route boundary now exist in `src/backend/auth.mjs` and `src/backend/auth-session.mjs`. They are reachable only when `AUTH_MODE=supabase` is explicitly selected with valid project configuration; the browser still does not create a production account in the default demo mode, verify a phone, or determine eligibility.
 
 ## Supabase Auth adapter boundary
 
@@ -19,7 +19,11 @@
 
 `auth-session.mjs` is the server-side bearer-session boundary around that provider. It accepts only a single `Authorization: Bearer <token>` value, supports required and optional session resolution, validates the returned user shape, maps provider failures to safe `401`/`503` errors and revokes a bearer session without returning the token. It does not log or include credentials in error messages.
 
-The boundary deliberately does not yet provide application session cookies, route middleware, account-to-`profiles` provisioning, email-confirmation UX, MFA enrollment, eligibility decisions or authorization for financial/admin routes. Those are required integration work before any account-write route can be enabled.
+The boundary deliberately does not yet provide application session cookies, account-to-`profiles` provisioning, email-confirmation UX, MFA enrollment, eligibility decisions or authorization for financial/admin routes. Those are required integration work before the Auth route layer can be considered a production identity system.
+
+## Route activation boundary
+
+`AUTH_MODE=demo` is the safe default and preserves the existing synthetic session. `AUTH_MODE=supabase` is an explicit integration switch for the Auth routes only. It requires both public Supabase values; if either value is absent or invalid, the routes return `503 AUTH_NOT_CONFIGURED` and do not use the demo identity. The remaining profile, challenge, ledger, admin and payout routes still require protected persistence and authorization work.
 
 The request shapes follow Supabase's documented email/password, password-recovery, user lookup, logout and OAuth flows: [email/password sign-up](https://supabase.com/docs/reference/javascript/auth-signup), [password sign-in](https://supabase.com/docs/reference/javascript/auth-signinwithpassword), [user lookup](https://supabase.com/docs/reference/javascript/auth-getuser), [password recovery](https://supabase.com/docs/reference/javascript/auth-resetpasswordforemail), [logout](https://supabase.com/docs/reference/javascript/auth-signout), and [Google OAuth](https://supabase.com/docs/reference/javascript/auth-signinwithoauth).
 

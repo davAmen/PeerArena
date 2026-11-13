@@ -22,6 +22,7 @@ No Vercel, GitHub or Supabase deployment was attempted in this workspace. No acc
 - Authorized private GitHub repository and permission to enable branch protection, pull-request checks, dependency review and secret scanning.
 - Vercel team/project access, selected region, root directory and domain ownership if a custom domain is used.
 - Supabase project URL, anon key, service-role key, database connection string, backup policy and an approved migration window.
+- `AUTH_MODE=demo` for the default synthetic environment; use `AUTH_MODE=supabase` only in an isolated Auth test environment after route and redirect checks pass.
 - Supabase Auth configuration for email verification, password recovery, MFA and Google OAuth, including local, Vercel preview and production redirect URLs.
 - Approved sports-data provider contract and sandbox API key.
 - SeevPlus and/or Paystack sandbox account, test keys, webhook configuration and written approval for the intended business model.
@@ -31,7 +32,7 @@ No Vercel, GitHub or Supabase deployment was attempted in this workspace. No acc
 
 1. Create isolated Supabase projects for development, staging and production.
 2. Review and apply the migration using Supabase migrations; confirm RLS policies with two test users and a service-role-only finance test.
-3. Connect Supabase Auth and configure redirect URLs before enabling any account-write route.
+3. Configure redirect URLs, keep `AUTH_MODE=demo` by default, then enable `AUTH_MODE=supabase` only in an isolated environment and test the Auth routes with bearer sessions before enabling any other account-write route.
 4. Move the API contract into authenticated server-side Route Handlers or a protected API service. Keep the continuous sports monitor and settlement worker outside browser execution and do not depend on a browser or Vercel cron for low-latency monitoring.
 5. Configure only sandbox provider keys in development/preview. Store secrets in managed secret stores; never use `NEXT_PUBLIC_` for secrets.
 6. Deploy the static frontend using `npm run build:vercel` and confirm the generated Vercel URL.

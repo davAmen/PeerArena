@@ -4,7 +4,7 @@ The local Node service exposes the application contract below. It is a simulated
 
 The local API now applies an in-memory sliding-window limiter: 120 read requests and 30 mutation requests per client address and route per minute. Exceeded mutation calls return `429`, `Retry-After`, and `RATE_LIMITED`. A production deployment must replace this process-local limiter with a shared store/WAF policy so limits remain consistent across instances.
 
-The repository also contains a fail-closed Supabase Auth adapter in `src/backend/auth.mjs`. It is covered by mock-fetch contract tests but is not connected to the local demo routes; absent or invalid Supabase configuration produces `AUTH_NOT_CONFIGURED` without a network call.
+The repository also contains a fail-closed Supabase Auth adapter in `src/backend/auth.mjs` and bearer-session boundary in `src/backend/auth-session.mjs`. The default `AUTH_MODE=demo` keeps the synthetic session. Setting `AUTH_MODE=supabase` explicitly enables the Auth routes through those boundaries; absent or invalid Supabase configuration produces `AUTH_NOT_CONFIGURED` with `503` and never falls back to the demo identity.
 
 ## Public and demo routes
 
@@ -28,7 +28,7 @@ The repository also contains a fail-closed Supabase Auth adapter in `src/backend
 
 ## Identity and user routes
 
-The routes exist, but production identity operations are not connected in the local service. Registration, recovery, profile persistence and payout-destination writes return `403` with `REAL_MONEY_DISABLED` or an equivalent demo boundary error.
+With the default demo mode, registration, login, recovery, profile persistence and payout-destination writes remain disabled. With explicit `AUTH_MODE=supabase`, `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/recovery`, `GET /api/auth/google`, `GET /api/auth/session` and `POST /api/auth/logout` use the configured Auth provider and bearer boundary. Profile persistence, challenge ownership, eligibility and payout-destination writes remain unconnected and must not be treated as production-ready.
 
 `GET /api/auth/session`, `POST /api/auth/logout`, `GET /api/users/me`, `GET /api/users/me/challenges`, and `GET /api/users/me/transactions` expose the synthetic session and its state.
 

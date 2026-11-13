@@ -6,6 +6,7 @@ const asBoolean = (value, fallback = false) => {
 export function readRuntimeConfig(env = process.env) {
   return Object.freeze({
     appEnv: env.APP_ENV ?? "demo",
+    authMode: env.AUTH_MODE ?? "demo",
     paymentMode: env.PAYMENT_MODE ?? "mock",
     realMoneyEnabled: asBoolean(env.REAL_MONEY_ENABLED, false),
     mockPaymentsEnabled: asBoolean(env.MOCK_PAYMENTS_ENABLED, true),

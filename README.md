@@ -17,7 +17,7 @@ npm start
 
 Run npm commands from this repository directory. Running `npm install`, `npm test`, or `npm start` from `C:\Users\Administrator` produces an `ENOENT` error because that directory does not contain this project's `package.json`.
 
-Open `http://127.0.0.1:4174` in a browser. The in-memory service resets when the process restarts. The port can be changed with `PEERARENA_PORT`.
+Open `http://127.0.0.1:4174` in a browser. The in-memory service resets when the process restarts. The port can be changed with `PEERARENA_PORT`. Keep `AUTH_MODE=demo` for the synthetic walkthrough; Supabase Auth routes require an explicit `AUTH_MODE=supabase` and configured project values.
 
 ## Demonstration path
 

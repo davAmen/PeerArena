@@ -13,12 +13,13 @@
 - [x] Local API sliding-window rate limiting with explicit `429` responses.
 - [x] Fail-closed Supabase Auth adapter with mock-fetch contract tests.
 - [x] Server-side bearer-session boundary with required/optional validation and safe logout mapping.
+- [x] Explicit `AUTH_MODE=supabase` Auth route wiring with demo-mode default and fail-closed configuration handling.
 - [x] Vercel static build configuration, security headers and CI workflow.
 - [x] Automated lifecycle, settlement, ledger, provider and activation-gate tests.
 
 ## Blocked pending external access or approval
 
-- [ ] Next.js Route Handlers or protected API service connected to Supabase Auth/PostgreSQL with secure session handling.
+- [ ] Next.js Route Handlers or protected API service connected to Supabase Auth/PostgreSQL with secure cookie/session handling and durable profiles.
 - [ ] Shared production rate limiting/WAF policy across API instances.
 - [ ] Email/password, Google OAuth, password recovery, email verification and MFA configured and exercised in an isolated Supabase project.
 - [ ] Migration applied to isolated development/staging Supabase projects and RLS tested with multiple roles.

@@ -9,6 +9,7 @@ if (config.realMoneyEnabled && !gate.enabled) {
 
 console.log(JSON.stringify({
   appEnv: config.appEnv,
+  authMode: config.authMode,
   paymentMode: config.paymentMode,
   realMoneyEnabled: config.realMoneyEnabled,
   gate: gate.enabled ? "READY_FOR_SEPARATE_REVIEW" : "BLOCKED",
