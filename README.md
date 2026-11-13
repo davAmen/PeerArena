@@ -49,7 +49,7 @@ Directive 3.0 additions and their remaining external gates are mapped in `docs/D
 
 ## Security boundary
 
-The local service is intentionally small and in-memory by default. The 3.0 branch now includes a reviewed Supabase migration, RLS defaults, fail-closed Supabase Auth/session boundaries, server-only admin/catalogue/profile/public-challenge repositories, backend service boundaries, a mock provider, disabled external-provider adapters, a default-deny activation gate, and process-local API rate limiting. It still has no connected production database, licensed sports-data feed, production secrets, transactional challenge/ledger procedures, or external notification service. Those integrations remain blocked until the legal, licensing, payment, data-provider and security gates in `docs/LEGAL_REVIEW_CHECKLIST.md` are independently cleared.
+The local service is intentionally small and in-memory by default. The 3.0 branch now includes a reviewed Supabase migration, RLS defaults, fail-closed Supabase Auth/session boundaries, server-only admin/catalogue/profile/public-challenge repositories, hardened HTTP controls, repeatable security checks, backend service boundaries, a mock provider, disabled external-provider adapters, a default-deny activation gate, and process-local API rate limiting. It still has no connected production database, licensed sports-data feed, production secrets, transactional challenge/ledger procedures, runtime alert channel, or external notification service. Those integrations remain blocked until the legal, licensing, payment, data-provider and security gates in `docs/LEGAL_REVIEW_CHECKLIST.md` are independently cleared.
 
 ## Verification
 
@@ -57,6 +57,7 @@ The local service is intentionally small and in-memory by default. The 3.0 branc
 npm test
 npm run build
 npm run check
+npm run security:check
 node --check server.mjs
 node --check src/demo-engine.mjs
 node --check dist/app.js

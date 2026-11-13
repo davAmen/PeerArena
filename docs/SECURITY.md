@@ -2,7 +2,7 @@
 
 ## Security posture
 
-The current demo is safe-by-boundary rather than production-secure: it has no real accounts, secrets, payments or persistent customer data. This document defines the control set required before regulated integration.
+The current demo is safe-by-boundary rather than production-secure: it has no real accounts, secrets, payments or persistent customer data. The repository now enforces a hardened HTTP baseline and repeatable security checks, but production still requires the external controls and independent review listed below. See `docs/SECURITY_MONITORING.md` for the monitoring and alerting boundary.
 
 ## Threat model
 
@@ -28,11 +28,13 @@ The current demo is safe-by-boundary rather than production-secure: it has no re
 - Secret manager with rotation, expiry, access audit and break-glass process.
 - Strict input validation, output encoding, parameterized queries and CSRF/origin controls.
 - Security headers: CSP, HSTS in production, no-sniff, frame-ancestors, secure cookies, same-site cookies and referrer policy.
+- Request correlation IDs, bounded HTTP timeouts/header sizes/body sizes and production Origin checks for browser mutations.
 - Rate limits by IP, account, device and endpoint; abuse monitoring and progressive challenges.
 - Immutable or append-only audit storage with hash chaining or signed archive export.
 - Backups encrypted, access-controlled and restore-tested; documented RPO/RTO.
 - Dependency scanning, SAST, DAST, container scanning, SBOM and signed build artifacts.
 - Independent penetration test and remediation verification before launch.
+- Automated `npm run security:check`, dependency audit and scheduled CI scans; CI status is not a substitute for runtime monitoring or independent testing.
 
 ## Financial integrity
 

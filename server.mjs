@@ -1,4 +1,5 @@
 import http from "node:http";
+import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -45,25 +46,44 @@ const contentTypes = {
 };
 
 function securityHeaders(extra = {}) {
-  return {
+  const headers = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "same-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "X-Permitted-Cross-Domain-Policies": "none",
     "Cache-Control": "no-store",
-    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'",
+    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'; frame-ancestors 'none'",
     ...extra
   };
+  if (process.env.APP_ENV === "production") headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+  return headers;
 }
 
 function sendJson(response, status, payload) {
   const body = JSON.stringify(payload);
-  response.writeHead(status, securityHeaders({ "Content-Type": "application/json; charset=utf-8" }));
+  response.writeHead(status, securityHeaders({ "Content-Type": "application/json; charset=utf-8", "X-Request-ID": response.peerArenaRequestId ?? randomUUID() }));
   response.end(body);
 }
 
 function sendError(response, status, error) {
   const actualStatus = Number.isInteger(error?.status) ? error.status : status;
-  const payload = { error: error instanceof Error ? error.message : String(error) };
+  const safeCodes = new Set([
+    "AUTH_NOT_CONFIGURED",
+    "PERSISTENCE_NOT_CONFIGURED",
+    "CHALLENGE_TRANSACTION_REQUIRED",
+    "DEMO_STATE_DISABLED",
+    "ORIGIN_NOT_CONFIGURED",
+    "CSRF_ORIGIN_REJECTED",
+    "RATE_LIMITED"
+  ]);
+  const exposeMessage = actualStatus < 500 || safeCodes.has(error?.code);
+  const payload = {
+    error: exposeMessage ? (error instanceof Error ? error.message : String(error)) : "Request could not be completed.",
+    requestId: response.peerArenaRequestId ?? randomUUID()
+  };
   if (error?.code) payload.code = error.code;
   sendJson(response, actualStatus, payload);
 }
@@ -116,6 +136,33 @@ function adminPage(url) {
     limit: url.searchParams.get("limit") ?? undefined,
     offset: url.searchParams.get("offset") ?? undefined
   };
+}
+
+function requestSecurityError(message, code, status) {
+  const error = new Error(message);
+  error.code = code;
+  error.status = status;
+  return error;
+}
+
+function enforceMutationOrigin(request) {
+  if (!productionAuthEnabled() || !["POST", "PATCH", "PUT", "DELETE"].includes(request.method)) return;
+  const origin = request.headers.origin;
+  if (origin === undefined) return;
+  if (typeof origin !== "string" || origin.length > 2_048) {
+    throw requestSecurityError("Request origin is invalid.", "CSRF_ORIGIN_REJECTED", 403);
+  }
+  const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (!configuredAppUrl) {
+    throw requestSecurityError("The application origin is not configured.", "ORIGIN_NOT_CONFIGURED", 503);
+  }
+  let allowedOrigin;
+  try {
+    allowedOrigin = new URL(configuredAppUrl).origin;
+  } catch {
+    throw requestSecurityError("The application origin is invalid.", "ORIGIN_NOT_CONFIGURED", 503);
+  }
+  if (origin !== allowedOrigin) throw requestSecurityError("Request origin is not allowed.", "CSRF_ORIGIN_REJECTED", 403);
 }
 
 function challengeOperationBlocked(response, operation) {
@@ -177,6 +224,7 @@ function applyRateLimit(request, response, url) {
 async function handleApi(request, response, url) {
   try {
     if (!applyRateLimit(request, response, url)) return;
+    enforceMutationOrigin(request);
     if (request.method === "GET" && url.pathname === "/api/health") {
       return sendJson(response, 200, { ok: true, demoMode: !productionAuthEnabled(), realMoneyEnabled: false, service: productionAuthEnabled() ? "peerarena-api" : "peerarena-demo" });
     }
@@ -476,7 +524,13 @@ async function serveStatic(request, response, url) {
   }
 }
 
-const server = http.createServer(async (request, response) => {
+const server = http.createServer({
+  maxHeaderSize: 16 * 1024,
+  requestTimeout: 15_000,
+  headersTimeout: 10_000,
+  keepAliveTimeout: 5_000
+}, async (request, response) => {
+  response.peerArenaRequestId = randomUUID();
   const url = new URL(request.url ?? "/", "http://localhost");
   if (url.pathname.startsWith("/api/")) return handleApi(request, response, url);
   return serveStatic(request, response, url);

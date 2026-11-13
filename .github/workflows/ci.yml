@@ -24,5 +24,9 @@ jobs:
         run: npm ci
       - name: Test and build checks
         run: npm run check && npm run build
+      - name: Security baseline checks
+        run: npm run security:check
+      - name: Dependency audit
+        run: npm audit --omit=dev --audit-level=moderate
       - name: Check whitespace errors
         run: git diff --check

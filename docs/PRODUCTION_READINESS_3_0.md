@@ -20,6 +20,7 @@
 - [x] Supabase catalogue repository for enabled sports, public events, live events and open market reads.
 - [x] Server-only Supabase challenge repository for public reads with explicit public-state filters and no demo fallback.
 - [x] Vercel static build configuration, security headers and CI workflow.
+- [x] Hardened HTTP baseline, production Origin checks, request correlation IDs, bounded timeouts and repeatable security/dependency checks.
 - [x] Automated lifecycle, settlement, ledger, provider and activation-gate tests.
 
 ## Blocked pending external access or approval
@@ -35,6 +36,7 @@
 - [ ] Provider approval for the intended regulated model, collection, safeguarding and winner disbursement.
 - [ ] KYC, age, jurisdiction, AML, fraud, responsible-gambling and dispute procedures implemented.
 - [ ] Independent security review and restore/reconciliation drills completed.
+- [ ] Runtime WAF, centralized monitoring, critical/high alert routing and 24/7 incident ownership connected.
 - [ ] Vercel project/GitHub repository connected and deployment smoke-tested.
 - [ ] Production operational authorization recorded and reviewed.
 
