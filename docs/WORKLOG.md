@@ -20,6 +20,8 @@ This is the durable project record for security, persistence, verification and r
 
 ## Current database sovereignty milestone
 
+Committed as `f13e6c7`.
+
 The production database target is now explicitly self-hosted PostgreSQL operated on a private, owner-controlled network. The application accepts only `owned-postgres` or `disabled` as database modes. Production readiness requires an exact host allowlist and `verify-full` TLS. The demo remains in-memory with synthetic, non-redeemable balances.
 
 The owned PostgreSQL hardening layer revokes public privileges, enables and forces RLS, keeps the API role away from direct tables, makes ledger/audit/provider evidence append-only, enforces currency and double-entry balance, and computes an audit hash chain under an advisory lock. This is a database foundation, not a claim that a production database has already been provisioned or connected.
