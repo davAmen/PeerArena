@@ -1,3 +1,5 @@
+import { ownedDatabaseGate, readDatabaseConfig } from "./database.mjs";
+
 const asBoolean = (value, fallback = false) => {
   if (value === undefined || value === null || value === "") return fallback;
   return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
@@ -5,6 +7,7 @@ const asBoolean = (value, fallback = false) => {
 
 export function readRuntimeConfig(env = process.env) {
   const publicSupabaseKey = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const database = readDatabaseConfig(env);
   return Object.freeze({
     appEnv: env.APP_ENV ?? "demo",
     authMode: env.AUTH_MODE ?? "demo",
@@ -14,6 +17,9 @@ export function readRuntimeConfig(env = process.env) {
     googleAuthEnabled: asBoolean(env.GOOGLE_AUTH_ENABLED, false),
     supabaseConfigured: Boolean(env.NEXT_PUBLIC_SUPABASE_URL && publicSupabaseKey),
     supabasePersistenceConfigured: Boolean(env.NEXT_PUBLIC_SUPABASE_URL && (env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY)),
+    databaseProvider: database.provider,
+    ownedDatabaseReady: database.productionReady,
+    databaseGate: ownedDatabaseGate(database),
     productionAuthorization: env.REAL_MONEY_OPERATIONAL_AUTHORIZATION ?? "",
     paymentProviderApproved: asBoolean(env.PAYMENT_PROVIDER_APPROVED, false),
     gamingAuthorizationVerified: asBoolean(env.GAMING_AUTHORIZATION_VERIFIED, false),
@@ -31,6 +37,7 @@ export function realMoneyGate(config = readRuntimeConfig()) {
   if (!config.paymentProviderApproved) blockers.push("payment-provider approval is not verified");
   if (!config.safeguardingVerified) blockers.push("customer-funds safeguarding is not verified");
   if (!config.securityReviewVerified) blockers.push("independent security review is not verified");
+  if (config.appEnv === "production" && config.ownedDatabaseReady !== true) blockers.push("owned self-hosted database is not ready");
   return Object.freeze({ enabled: blockers.length === 0, blockers });
 }
 

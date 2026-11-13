@@ -22,11 +22,13 @@
 - [x] Vercel static build configuration, security headers and CI workflow.
 - [x] Hardened HTTP baseline, production Origin checks, request correlation IDs, bounded timeouts and repeatable security/dependency checks.
 - [x] Redacted, bounded runtime security-event telemetry surfaced through the protected admin security view.
+- [x] Owned PostgreSQL configuration gate and default-deny hardening migration with forced RLS, append-only evidence and database integrity triggers.
 - [x] Automated lifecycle, settlement, ledger, provider and activation-gate tests.
 
 ## Blocked pending external access or approval
 
-- [ ] Next.js Route Handlers or protected API service connected to Supabase Auth/PostgreSQL with secure cookie/session handling and durable profiles.
+- [ ] Protected API service connected to first-party authentication/private PostgreSQL with secure cookie/session handling and durable profiles.
+- [ ] First-party authentication, reviewed database procedures and a provisioned private PostgreSQL cluster connected; no hosted database or Supabase production path.
 - [ ] Transactional challenge creation and acceptance procedures that atomically write participants and ledger reservations.
 - [ ] Transactional settlement, void/refund and reconciliation procedures with immutable audit records.
 - [ ] Shared production rate limiting/WAF policy across API instances.

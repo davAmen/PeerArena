@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readRuntimeConfig, realMoneyGate } from "../src/backend/config.mjs";
+import { ownedDatabaseGate, readDatabaseConfig } from "../src/backend/database.mjs";
 import {
   AdminRepositoryError,
   DisabledAdminRepository,
@@ -148,6 +149,39 @@ test("runtime configuration defaults to synthetic auth and requires explicit Sup
   assert.equal(readRuntimeConfig({ AUTH_MODE: "supabase" }).authMode, "supabase");
   assert.equal(readRuntimeConfig({ NEXT_PUBLIC_SUPABASE_URL: "https://peerarena.supabase.co", NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test" }).supabaseConfigured, true);
   assert.equal(readRuntimeConfig({ NEXT_PUBLIC_SUPABASE_URL: "https://peerarena.supabase.co", SUPABASE_SECRET_KEY: "sb_secret_test" }).supabasePersistenceConfigured, true);
+});
+
+test("owned database configuration accepts only allowlisted PostgreSQL with verified TLS", () => {
+  const owned = readDatabaseConfig({
+    APP_ENV: "production",
+    DATABASE_PROVIDER: "owned-postgres",
+    DATABASE_URL: "postgresql://peerarena@db.internal/peerarena",
+    DATABASE_SSL_MODE: "verify-full",
+    DATABASE_ALLOWED_HOSTS: "db.internal"
+  });
+  assert.equal(owned.productionReady, true);
+  assert.equal(owned.host, "db.internal");
+  assert.equal(ownedDatabaseGate(owned).enabled, true);
+
+  const hosted = readDatabaseConfig({
+    APP_ENV: "production",
+    DATABASE_PROVIDER: "supabase",
+    DATABASE_URL: "https://example.supabase.co",
+    DATABASE_SSL_MODE: "verify-full",
+    DATABASE_ALLOWED_HOSTS: "example.supabase.co"
+  });
+  assert.equal(hosted.productionReady, false);
+  assert.match(ownedDatabaseGate(hosted).blockers.join(" "), /owned-postgres/);
+
+  const mismatchedTls = readDatabaseConfig({
+    APP_ENV: "production",
+    DATABASE_PROVIDER: "owned-postgres",
+    DATABASE_URL: "postgresql://peerarena@db.internal/peerarena?sslmode=disable",
+    DATABASE_SSL_MODE: "verify-full",
+    DATABASE_ALLOWED_HOSTS: "db.internal"
+  });
+  assert.equal(mismatchedTls.productionReady, false);
+  assert.match(mismatchedTls.errors.join(" "), /sslmode must match/);
 });
 
 test("rate limiter returns retry metadata and resets after its window", () => {

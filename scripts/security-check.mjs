@@ -14,13 +14,16 @@ async function readProjectFile(relativePath) {
   return readFile(path.join(projectRoot, relativePath), "utf8");
 }
 
-const [vercelText, gitignore, packageText, serverText, configText, securityEventsText] = await Promise.all([
+const [vercelText, gitignore, packageText, serverText, configText, securityEventsText, databaseText, databaseMigrationText, worklogText] = await Promise.all([
   readProjectFile("vercel.json"),
   readProjectFile(".gitignore"),
   readProjectFile("package.json"),
   readProjectFile("server.mjs"),
   readProjectFile("src/backend/config.mjs"),
-  readProjectFile("src/backend/security-events.mjs")
+  readProjectFile("src/backend/security-events.mjs"),
+  readProjectFile("src/backend/database.mjs"),
+  readProjectFile("database/migrations/0001_owned_postgres_hardening.sql"),
+  readProjectFile("docs/WORKLOG.md")
 ]);
 
 let vercel;
@@ -62,12 +65,21 @@ for (const requiredSourceMarker of [
   "enforceMutationOrigin",
   "Strict-Transport-Security",
   "X-Request-ID",
-  "runtimeSecurity"
+  "runtimeSecurity",
+  "ownedDatabaseReady"
 ]) requireCondition(serverText.includes(requiredSourceMarker), `Server hardening marker is missing: ${requiredSourceMarker}`);
 
 for (const requiredTelemetryMarker of ["SecurityEventLogger", "MAX_BUFFERED_EVENTS", "MAX_SNAPSHOT_SIZE", "new URL"]) {
   requireCondition(securityEventsText.includes(requiredTelemetryMarker) || serverText.includes(requiredTelemetryMarker), `Security telemetry marker is missing: ${requiredTelemetryMarker}`);
 }
+
+for (const requiredDatabaseMarker of ["OWNED_POSTGRES_PROVIDER", "DATABASE_ALLOWED_HOSTS", "verify-full", "productionReady"]) {
+  requireCondition(databaseText.includes(requiredDatabaseMarker) || configText.includes(requiredDatabaseMarker), `Owned database marker is missing: ${requiredDatabaseMarker}`);
+}
+for (const requiredMigrationMarker of ["revoke all on all tables in schema public from public", "force row level security", "reject_immutable_mutation", "chain_audit_event"]) {
+  requireCondition(databaseMigrationText.toLowerCase().includes(requiredMigrationMarker.toLowerCase()), `Database hardening marker is missing: ${requiredMigrationMarker}`);
+}
+requireCondition(worklogText.includes("PeerArena engineering worklog"), "Versioned engineering worklog is missing");
 
 requireCondition(configText.includes("realMoneyEnabled: asBoolean(env.REAL_MONEY_ENABLED, false)"), "Real-money configuration must default to false");
 

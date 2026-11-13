@@ -25,6 +25,7 @@ The current demo is safe-by-boundary rather than production-secure: it has no re
 - RBAC with least privilege and separate roles for support, trading, compliance, finance, engineering and release approval.
 - Step-up authentication and dual approval for fee/rule changes, refunds, reversals, settlement overrides and customer-funds operations.
 - TLS in transit; envelope encryption and managed keys at rest; separate production secrets from code and logs.
+- Owned-database mode uses private self-hosted PostgreSQL only, exact host allowlisting, `verify-full` TLS, forced RLS, no public table grants, non-superuser runtime roles and reviewed stored procedures.
 - Secret manager with rotation, expiry, access audit and break-glass process.
 - Strict input validation, output encoding, parameterized queries and CSRF/origin controls.
 - Security headers: CSP, HSTS in production, no-sniff, frame-ancestors, secure cookies, same-site cookies and referrer policy.

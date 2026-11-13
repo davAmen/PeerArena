@@ -247,7 +247,7 @@ async function handleApi(request, response, url) {
     if (!applyRateLimit(request, response, url)) return;
     enforceMutationOrigin(request);
     if (request.method === "GET" && url.pathname === "/api/health") {
-      return sendJson(response, 200, { ok: true, demoMode: !productionAuthEnabled(), realMoneyEnabled: false, service: productionAuthEnabled() ? "peerarena-api" : "peerarena-demo" });
+      return sendJson(response, 200, { ok: true, demoMode: !productionAuthEnabled(), realMoneyEnabled: false, databaseProvider: runtimeConfig.databaseProvider, ownedDatabaseReady: runtimeConfig.ownedDatabaseReady, service: productionAuthEnabled() ? "peerarena-api" : "peerarena-demo" });
     }
     if (request.method === "GET" && url.pathname === "/api/state") {
       if (productionAuthEnabled()) return sendJson(response, 503, { error: "Synthetic demo state is disabled in Supabase mode.", code: "DEMO_STATE_DISABLED", productionAuth: "SUPABASE" });

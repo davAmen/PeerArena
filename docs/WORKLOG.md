@@ -1,0 +1,34 @@
+# PeerArena engineering worklog
+
+This is the durable project record for security, persistence, verification and release decisions. Each completed engineering milestone must add a dated entry with its commit, validation evidence and remaining blockers. The companion local memory store keeps a short searchable pointer; this file is the repository reference.
+
+## Completed milestones
+
+| Date | Commit | Record | Evidence / boundary |
+| --- | --- | --- | --- |
+| 2026-11-13 | `b17bf8c` | Added process-local API rate limiting. | Limits are bounded and tested; production still needs edge/WAF controls. |
+| 2026-11-13 | `d789487` | Added the fail-closed Supabase Auth adapter boundary. | No provider credentials means no authentication fallback. |
+| 2026-11-13 | `581a8fb` | Added bearer session validation. | Tokens are validated through the provider boundary. |
+| 2026-11-13 | `9bbfe0e` | Wired opt-in authentication routes. | Demo mode remains synthetic and separate. |
+| 2026-11-13 | `72f3926` | Enforced Supabase-mode authentication and authorization boundaries. | Admin role is server-controlled. |
+| 2026-11-13 | `7af4b0e` | Added the durable profile repository boundary. | Writes are server-only and allowlisted. |
+| 2026-11-13 | `8abfaf9` | Added the durable challenge read boundary. | Public-state filtering and fail-closed persistence. |
+| 2026-11-13 | `a4096a8` | Added the durable sports catalogue boundary. | Enabled/public projections only. |
+| 2026-11-13 | `2711bc5` | Added read-only durable admin reporting. | No admin financial or challenge mutation. |
+| 2026-11-13 | `3b6cdc3` | Hardened HTTP controls. | Request IDs, headers, origin checks, bounded timeouts, generic 5xx errors and scheduled security checks. |
+| 2026-11-13 | `0cd3f5b` | Added bounded redacted runtime security telemetry. | 36 tests, security baseline, build and dependency audit passed; no bodies, credentials, query strings or IPs are retained. |
+
+## Current database sovereignty milestone
+
+The production database target is now explicitly self-hosted PostgreSQL operated on a private, owner-controlled network. The application accepts only `owned-postgres` or `disabled` as database modes. Production readiness requires an exact host allowlist and `verify-full` TLS. The demo remains in-memory with synthetic, non-redeemable balances.
+
+The owned PostgreSQL hardening layer revokes public privileges, enables and forces RLS, keeps the API role away from direct tables, makes ledger/audit/provider evidence append-only, enforces currency and double-entry balance, and computes an audit hash chain under an advisory lock. This is a database foundation, not a claim that a production database has already been provisioned or connected.
+
+The earlier Supabase adapter remains compatibility code from the prototype and is not the owned deployment path. It must remain unconfigured for the owned architecture. First-party authentication and reviewed transactional procedures are still required before a self-hosted production API can be enabled.
+
+## Non-negotiable safety boundaries
+
+- Real-money operation, customer-fund custody, deposits, withdrawals, payouts and redeemable balances remain disabled.
+- No database or provider credential belongs in source control, client code, logs or this worklog.
+- No production deployment is considered complete without migration review, RLS tests, concurrency tests, encrypted backup/restore evidence, independent security review and an incident/alert channel.
+- Every future change must append a record here and a searchable memory pointer after its commit.

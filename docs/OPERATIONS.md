@@ -16,8 +16,8 @@ The demo is a single Node process with static assets and in-memory state. Restar
 1. Build a pinned, reproducible Node container from a reviewed lockfile.
 2. Run unit, integration, reconciliation, concurrency, security and accessibility tests.
 3. Run `npm run security:check` and dependency audit; scan the image, SBOM and secrets; require signed artifact promotion.
-4. Deploy API workers behind WAF/load balancer with private database and queue networks.
-5. Apply database migrations with backup and rollback plan.
+4. Deploy API workers behind WAF/load balancer with private owned-PostgreSQL and queue networks.
+5. Apply `docs/DATABASE_SCHEMA.sql` and `database/migrations/0001_owned_postgres_hardening.sql` with a backup and rollback plan; keep direct table grants revoked.
 6. Configure secrets via managed secret store; never use `.env` in source control.
 7. Enable centralized logs, metrics, traces, alerts and audit archive.
    Configure alert routing for critical/high security signals and workflow failures; do not rely on local console output.

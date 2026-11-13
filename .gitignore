@@ -6,3 +6,8 @@ node_modules/
 *.log
 npm-debug.log*
 supabase/.temp/
+database/backups/
+database/secrets/
+*.dump
+*.backup
+*.sql.gz

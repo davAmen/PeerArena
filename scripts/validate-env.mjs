@@ -13,6 +13,8 @@ console.log(JSON.stringify({
   paymentMode: config.paymentMode,
   supabaseConfigured: config.supabaseConfigured,
   supabasePersistenceConfigured: config.supabasePersistenceConfigured,
+  databaseProvider: config.databaseProvider,
+  ownedDatabaseReady: config.ownedDatabaseReady,
   realMoneyEnabled: config.realMoneyEnabled,
   gate: gate.enabled ? "READY_FOR_SEPARATE_REVIEW" : "BLOCKED",
   blockers: gate.blockers

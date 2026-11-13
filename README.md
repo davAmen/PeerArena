@@ -36,10 +36,12 @@ The admin route is a demonstration control surface only; it is not an authentica
 | --- | --- |
 | `server.mjs` | Node HTTP server, static hosting and demo API routes |
 | `src/demo-engine.mjs` | Challenge lifecycle, synthetic ledger and settlement rules |
-| `src/backend/` | Exact-unit ledger, settlement, Supabase Auth/session, authorization, admin/catalogue/profile/challenge repositories, redacted security telemetry, payment-provider boundaries, runtime gate and API contract modules |
+| `src/backend/` | Exact-unit ledger, settlement, authentication/session boundaries, authorization, database configuration, admin/catalogue/profile/challenge repositories, redacted security telemetry, payment-provider boundaries, runtime gate and API contract modules |
 | `dist/index.html` | Demo shell |
 | `dist/app.js` | Responsive single-page frontend |
 | `dist/styles.css` | Dark, responsive product UI |
+| `database/` | Self-hosted PostgreSQL hardening boundary and operator runbook |
+| `docs/WORKLOG.md` | Versioned engineering, security and persistence record |
 | `supabase/migrations/0001_peerarena_foundation.sql` | Versioned PostgreSQL schema, constraints, indexes and RLS foundation |
 | `tests/*.test.mjs` | Lifecycle, exact-unit accounting, provider boundary and safety tests |
 | `docs/` | Feasibility, requirements, architecture, schema, API, security, operations and legal drafts |
@@ -49,7 +51,7 @@ Directive 3.0 additions and their remaining external gates are mapped in `docs/D
 
 ## Security boundary
 
-The local service is intentionally small and in-memory by default. The 3.0 branch now includes a reviewed Supabase migration, RLS defaults, fail-closed Supabase Auth/session boundaries, server-only admin/catalogue/profile/public-challenge repositories, hardened HTTP controls, repeatable security checks, backend service boundaries, a mock provider, disabled external-provider adapters, a default-deny activation gate, and process-local API rate limiting. It still has no connected production database, licensed sports-data feed, production secrets, transactional challenge/ledger procedures, runtime alert channel, or external notification service. Those integrations remain blocked until the legal, licensing, payment, data-provider and security gates in `docs/LEGAL_REVIEW_CHECKLIST.md` are independently cleared.
+The local service is intentionally small and in-memory by default. The 3.0 branch now includes reviewed PostgreSQL schemas, an owned-database hardening boundary, fail-closed authentication/session boundaries, server-only admin/catalogue/profile/public-challenge repositories, hardened HTTP controls, repeatable security checks, backend service boundaries, a mock provider, disabled external-provider adapters, a default-deny activation gate, and process-local API rate limiting. It still has no connected production database, first-party authentication implementation, licensed sports-data feed, production secrets, transactional challenge/ledger procedures, runtime alert channel, or external notification service. Those integrations remain blocked until the legal, licensing, payment, data-provider and security gates in `docs/LEGAL_REVIEW_CHECKLIST.md` are independently cleared.
 
 ## Verification
 

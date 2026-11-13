@@ -35,7 +35,7 @@ PostgreSQL ─ Redis/jobs ─ Object storage/audit archive
 Licensed data providers / authorized PSP or EMI / KYC vendors
 ```
 
-The current demo collapses these boundaries into one Node process and in-memory state so it can be inspected easily. It intentionally has no external integration credentials.
+The current demo collapses these boundaries into one Node process and in-memory state so it can be inspected easily. It intentionally has no external integration credentials. The database target is an owner-operated PostgreSQL cluster on a private network; the owned-database hardening migration denies direct table access until reviewed procedures are installed.
 
 ## Service responsibilities
 
