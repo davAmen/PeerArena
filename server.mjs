@@ -546,19 +546,23 @@ async function serveStatic(request, response, url) {
   }
 }
 
-const server = http.createServer({
-  maxHeaderSize: 16 * 1024,
-  requestTimeout: 15_000,
-  headersTimeout: 10_000,
-  keepAliveTimeout: 5_000
-}, async (request, response) => {
+export async function handleRequest(request, response) {
   response.peerArenaRequestId = randomUUID();
   const url = new URL(request.url ?? "/", "http://localhost");
   if (url.pathname.startsWith("/api/")) return handleApi(request, response, url);
   return serveStatic(request, response, url);
-});
-const port = Number(process.env.PEERARENA_PORT || 4174);
-server.listen(port, "127.0.0.1", () => {
-  console.log(`PeerArena demo running at http://127.0.0.1:${port}`);
-  console.log("Real-money mode: disabled; all balances and settlements are synthetic.");
-});
+}
+
+if (process.env.VERCEL !== "1") {
+  const server = http.createServer({
+    maxHeaderSize: 16 * 1024,
+    requestTimeout: 15_000,
+    headersTimeout: 10_000,
+    keepAliveTimeout: 5_000
+  }, handleRequest);
+  const port = Number(process.env.PEERARENA_PORT || 4174);
+  server.listen(port, "127.0.0.1", () => {
+    console.log(`PeerArena demo running at http://127.0.0.1:${port}`);
+    console.log("Real-money mode: disabled; all balances and settlements are synthetic.");
+  });
+}

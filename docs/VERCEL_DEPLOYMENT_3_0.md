@@ -1,42 +1,42 @@
-# Vercel and Supabase handoff
+# Vercel and owned-database handoff
 
 ## Current repository shape
 
 This repository is a working static frontend plus a local Node HTTP demo service. It is not yet a Next.js App Router project. The 3.0 implementation preserves the working frontend and adds:
 
 - `vercel.json` with a verified static `dist` output, security headers and a reproducible build command.
+- `api/[...path].mjs` delegating same-origin `/api/*` requests to the hardened Node handler as a Vercel Function.
 - `scripts/verify-build.mjs` and `npm run check` for CI/build verification.
 - `supabase/migrations/0001_peerarena_foundation.sql` containing the PostgreSQL schema, constraints, indexes, trigger and RLS foundation.
 - server-side service modules for exact-unit ledger calculations, settlement and provider boundaries.
 - a fail-closed Supabase Auth adapter with mock-fetch contract tests; it is not yet wired into protected routes.
 - a CI workflow at `.github/workflows/ci.yml`.
 
-`vercel.json` does not claim that `server.mjs` is a Vercel Function. Vercel can publish the frontend from `dist`; the API must be migrated to Next.js Route Handlers or deployed as a separately managed backend/worker before a public full-stack launch.
+`vercel.json` does not claim that `server.mjs` itself is a Vercel Function. The catch-all adapter exposes the existing synthetic demo API on Vercel without turning the local HTTP listener into a serverless process. It remains in-memory per function instance and is not a durable production API.
 
 ## Deployment status
 
-The static frontend is deployed at [https://peerarena.vercel.app](https://peerarena.vercel.app). The Vercel project currently has SSO protection enabled, so it is not anonymously public. The deployment is frontend-only because `server.mjs` is not a Vercel Function; the API still requires a separately managed backend or a future Route Handler migration. No Supabase migration or production database connection has been performed.
+The PeerArena demo is deployed at [https://peerarena.vercel.app](https://peerarena.vercel.app). Vercel authentication protection remains enabled, so anonymous visitors are not granted access. The same-origin demo API is now routed through `api/[...path].mjs`; it uses synthetic in-memory state only. No production database, first-party authentication, payment, payout or real-money path is connected.
 
 ## Exact access/configuration needed
 
 - Authorized private GitHub repository and permission to enable branch protection, pull-request checks, dependency review and secret scanning.
 - Vercel team/project access, selected region, root directory and domain ownership if a custom domain is used.
-- Supabase project URL, publishable key, preferred secret key (or legacy service-role key), database connection string, backup policy and an approved migration window.
-- `AUTH_MODE=demo` for the default synthetic environment; use `AUTH_MODE=supabase` only in an isolated Auth test environment after route and redirect checks pass.
-- Supabase Auth configuration for email verification, password recovery, MFA and Google OAuth, including local, Vercel preview and production redirect URLs.
+- Owner-operated PostgreSQL host, role provisioning, private-network routing, backup policy and an approved migration window. Follow `database/README.md`.
+- `AUTH_MODE=demo` for the default synthetic environment; first-party authentication is still required before durable accounts are enabled.
 - Approved sports-data provider contract and sandbox API key.
 - SeevPlus and/or Paystack sandbox account, test keys, webhook configuration and written approval for the intended business model.
 - Security/compliance sign-off for identity, age, jurisdiction, AML, responsible-gambling, safeguarding and payout operations.
 
 ## Safe deployment sequence
 
-1. Create isolated Supabase projects for development, staging and production.
-2. Review and apply the migration using Supabase migrations; confirm RLS policies with two test users and a service-role-only finance test.
-3. Configure redirect URLs, keep `AUTH_MODE=demo` by default, then enable `AUTH_MODE=supabase` only in an isolated environment and test the Auth routes with bearer sessions before enabling any other account-write route.
-4. Move the API contract into authenticated server-side Route Handlers or a protected API service. Keep the continuous sports monitor and settlement worker outside browser execution and do not depend on a browser or Vercel cron for low-latency monitoring.
-5. Configure only sandbox provider keys in development/preview. Store secrets in managed secret stores; never use `NEXT_PUBLIC_` for secrets.
-6. Deploy the static frontend using `npm run build:vercel` and confirm the generated Vercel URL.
-7. Run API, Auth, webhook, migration, RLS, settlement, reconciliation and rollback smoke tests against staging.
+1. Provision the owner-operated PostgreSQL roles and apply the owned migrations in `database/README.md`.
+2. Implement first-party authentication and reviewed transactional procedures; keep direct table grants revoked.
+3. Keep `AUTH_MODE=demo` and the real-money gate blocked while validating the Vercel Function adapter and synthetic API flows.
+4. Keep the continuous sports monitor and settlement worker outside browser execution and do not depend on Vercel cron for low-latency monitoring.
+5. Configure only sandbox provider keys in isolated environments. Store secrets in managed secret stores; never use `NEXT_PUBLIC_` for secrets.
+6. Deploy with `vercel --prod --yes` to the existing protected project and verify `/api/health`, `/api/state` and a read-only synthetic route.
+7. Run API, authentication, migration, RLS, settlement, reconciliation and rollback smoke tests against a private staging environment.
 8. Keep the default-deny gate blocked until the documented operational authorization is verified independently.
 
 ## Environment rules

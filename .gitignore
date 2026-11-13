@@ -11,3 +11,5 @@ database/secrets/
 *.dump
 *.backup
 *.sql.gz
+
+.vercel/

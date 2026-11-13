@@ -2,15 +2,15 @@
 
 ## Repository status
 
-The repository contains the existing PeerArena simulated-funds experience plus the 3.0 backend foundation, Supabase migration, Vercel configuration, CI workflow and documentation. The project remains an intentionally small Node/static application rather than a completed Next.js migration.
+The repository contains the existing PeerArena simulated-funds experience plus the 3.0 backend foundation, owned PostgreSQL migrations, Vercel configuration, a same-origin demo API adapter, CI workflow and documentation. The project remains an intentionally small Node/static application rather than a completed durable full-stack production service.
 
 ## Application URL
 
-The static frontend was deployed to [peerarena.vercel.app](https://peerarena.vercel.app). Vercel SSO protection remains enabled, so anonymous visitors are not granted access. This deployment publishes `dist` only; `server.mjs` is not a Vercel Function and the local API remains available only when started by the owner with `npm start`, normally at `http://127.0.0.1:4174`.
+The protected PeerArena demo was deployed to [peerarena.vercel.app](https://peerarena.vercel.app). Vercel authentication protection remains enabled, so anonymous visitors are not granted access. `dist` supplies the frontend and `api/[...path].mjs` exposes the synthetic `/api/*` contract through a Vercel Function; state is in-memory and resets across function instances.
 
 ## Database status
 
-`supabase/migrations/0001_peerarena_foundation.sql` is present and reviewed as source code. It has not been applied to a Supabase project because no project credentials or migration authorization were available. RLS is enabled in the migration; authoritative finance tables intentionally have no client policies.
+The owner-operated PostgreSQL schema, hardening migration, role bootstrap and reviewed `create_challenge` procedure are present as source code. No production database has been provisioned or connected. RLS is forced, direct table access is denied, and authoritative finance procedures remain blocked.
 
 ## Authentication status
 
@@ -28,13 +28,13 @@ The current feed is synthetic. A licensed data-provider contract, sandbox key, r
 
 Verified locally on 2026-11-13:
 
-- `npm run check`: passed; 40 tests passed, environment gate validation passed, and JavaScript syntax checks passed.
+- `npm run check`: passed; 41 tests passed, environment gate validation passed, and JavaScript syntax checks passed.
 - `npm run build`: passed; `dist/index.html`, `dist/app.js` and `dist/styles.css` were found.
 - `npm run security:check`: passed; security headers/CSP, secret-file hygiene, default-deny real-money configuration and HTTP hardening markers verified.
 - `npm audit --omit=dev --audit-level=moderate`: passed; 0 vulnerabilities reported.
 - Temporary localhost API smoke test: passed for health, disabled real-money state, sports, live events, public challenges and the `429` rate-limit boundary.
 - `git diff --check`: passed.
-- Supabase SQL execution: not run; no connected Supabase project or local PostgreSQL instance was available.
+- PostgreSQL migration execution: not run; no connected private PostgreSQL instance was available.
 
 The committed CI workflow repeats the Node/build checks on pushes and pull requests.
 
@@ -44,8 +44,7 @@ Real-money mode is blocked by code and configuration. No deposits, fees, withdra
 
 ## Recommended next actions
 
-1. Provide authorized GitHub, Vercel and Supabase access and create isolated environments.
-2. Review/apply the migration and test RLS with separate user, admin and service roles.
-3. Configure Supabase Auth and migrate the API contract into protected server-side handlers.
-4. Obtain provider and sports-data sandbox access, then implement only documented sandbox calls with raw-body webhook verification.
-5. Complete the compliance/security checklist and staging restore/reconciliation drills before any production consideration.
+1. Provision the private owner-operated PostgreSQL cluster and apply the role/schema/procedure migrations.
+2. Implement first-party authentication and connect only reviewed stored procedures, with RLS/concurrency/restore tests.
+3. Keep provider/data integrations and real-money gates disabled until contracts, licensing and independent review exist.
+4. Complete the compliance/security checklist and staging restore/reconciliation drills before any production consideration.
