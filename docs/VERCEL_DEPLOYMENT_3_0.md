@@ -15,7 +15,7 @@ This repository is a working static frontend plus a local Node HTTP demo service
 
 ## Deployment status
 
-No Vercel, GitHub or Supabase deployment was attempted in this workspace. No account token, project identifier, repository permission, Supabase URL, database URL, provider sandbox key or production domain was available. Therefore there is no application URL or successful deployment confirmation to report.
+The static frontend is deployed at [https://peerarena.vercel.app](https://peerarena.vercel.app). The Vercel project currently has SSO protection enabled, so it is not anonymously public. The deployment is frontend-only because `server.mjs` is not a Vercel Function; the API still requires a separately managed backend or a future Route Handler migration. No Supabase migration or production database connection has been performed.
 
 ## Exact access/configuration needed
 

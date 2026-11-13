@@ -6,6 +6,8 @@ The local API now applies an in-memory sliding-window limiter: 120 read requests
 
 The repository also contains a fail-closed Supabase Auth adapter in `src/backend/auth.mjs` and bearer-session boundary in `src/backend/auth-session.mjs`. The default `AUTH_MODE=demo` keeps the synthetic session. Setting `AUTH_MODE=supabase` explicitly enables the Auth routes through those boundaries; absent or invalid Supabase configuration produces `AUTH_NOT_CONFIGURED` with `503` and never falls back to the demo identity.
 
+In `AUTH_MODE=supabase`, `GET /api/challenges` and `GET /api/challenges/:id` use the server-only challenge repository in `src/backend/challenges.mjs`. The repository selects only `PUBLIC` challenges in `AWAITING_ACCEPTANCE`, `ACTIVE` or `FUNDS_CONFIRMED` state, and missing server persistence configuration returns `503 PERSISTENCE_NOT_CONFIGURED` instead of reading the in-memory demo state. Challenge creation, participant reads, acceptance, cancellation and settlement remain fail-closed until a transactional server procedure can atomically enforce ownership, participant state and ledger reservations.
+
 ## Public and demo routes
 
 | Method | Route | Demo behavior |
@@ -43,6 +45,7 @@ The service modules in `src/backend/` define the replacement boundary:
 - `config.mjs` applies the default-deny activation gate.
 - `auth.mjs` defines the fail-closed Supabase Auth boundary for email/password, recovery, bearer-token lookup/logout and Google OAuth URL creation.
 - `auth-session.mjs` defines bearer-token extraction, required/optional session validation and safe logout error mapping.
+- `challenges.mjs` defines the server-only Supabase public challenge read boundary and keeps challenge writes blocked until a transactional procedure exists.
 - `profiles.mjs` defines the server-only Supabase REST repository and allowlisted profile patch validation.
 - `ledger.mjs` represents amounts as integer minor units.
 - `payments.mjs` defines the provider interface and a working mock provider.
@@ -51,4 +54,4 @@ The service modules in `src/backend/` define the replacement boundary:
 
 ## Production replacement requirements
 
-Before the remaining routes can be connected to Supabase Auth/PostgreSQL or external providers, add secure cookie/session handling, profile provisioning, schema validation, shared rate limiting, signed webhook verification against the raw body, durable idempotency records, transaction boundaries and audit logging. The SQL migration deliberately denies direct client access to authoritative financial tables.
+Before the remaining routes can be connected to Supabase Auth/PostgreSQL or external providers, add secure cookie/session handling, profile provisioning, schema validation, shared rate limiting, signed webhook verification against the raw body, durable idempotency records, transactional challenge creation/acceptance/settlement procedures and audit logging. The SQL migration deliberately denies direct client access to authoritative financial tables.

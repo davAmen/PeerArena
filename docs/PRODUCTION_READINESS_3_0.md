@@ -16,12 +16,15 @@
 - [x] Explicit `AUTH_MODE=supabase` Auth route wiring with demo-mode default and fail-closed configuration handling.
 - [x] Admin RBAC boundary using server-controlled Auth metadata; synthetic persistence routes fail closed in Supabase mode.
 - [x] Server-only Supabase profile repository with UUID scoping and allowlisted update fields.
+- [x] Server-only Supabase challenge repository for public reads with explicit public-state filters and no demo fallback.
 - [x] Vercel static build configuration, security headers and CI workflow.
 - [x] Automated lifecycle, settlement, ledger, provider and activation-gate tests.
 
 ## Blocked pending external access or approval
 
 - [ ] Next.js Route Handlers or protected API service connected to Supabase Auth/PostgreSQL with secure cookie/session handling and durable profiles.
+- [ ] Transactional challenge creation and acceptance procedures that atomically write participants and ledger reservations.
+- [ ] Transactional settlement, void/refund and reconciliation procedures with immutable audit records.
 - [ ] Shared production rate limiting/WAF policy across API instances.
 - [ ] Email/password, Google OAuth, password recovery, email verification and MFA configured and exercised in an isolated Supabase project.
 - [ ] Migration applied to isolated development/staging Supabase projects and RLS tested with multiple roles.

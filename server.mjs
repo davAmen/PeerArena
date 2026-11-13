@@ -17,6 +17,7 @@ import {
 import { AuthProviderError, createAuthProviderFromEnv } from "./src/backend/auth.mjs";
 import { requireAuthenticatedSession, revokeAuthenticatedSession } from "./src/backend/auth-session.mjs";
 import { requireAdminSession } from "./src/backend/authorization.mjs";
+import { ChallengeRepositoryError, createChallengeRepositoryFromEnv } from "./src/backend/challenges.mjs";
 import { readRuntimeConfig } from "./src/backend/config.mjs";
 import { ProfileRepositoryError, createProfileRepositoryFromEnv } from "./src/backend/profiles.mjs";
 import { SlidingWindowRateLimiter, requestAddress } from "./src/backend/rate-limit.mjs";
@@ -26,6 +27,7 @@ const distRoot = path.join(projectRoot, "dist");
 let state = createInitialState();
 const runtimeConfig = readRuntimeConfig();
 const authProvider = createAuthProviderFromEnv();
+const challengeRepository = createChallengeRepositoryFromEnv();
 const profileRepository = createProfileRepositoryFromEnv();
 const apiRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 120 });
 const mutationRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 30 });
@@ -85,6 +87,20 @@ function assertProfilePersistenceConfigured() {
   if (!profileRepository.getCapabilities().configured) {
     throw new ProfileRepositoryError("Profile persistence is not configured.", { code: "PERSISTENCE_NOT_CONFIGURED", status: 503 });
   }
+}
+
+function assertChallengePersistenceConfigured() {
+  if (!challengeRepository.getCapabilities().configured) {
+    throw new ChallengeRepositoryError("Challenge persistence is not configured.", { code: "PERSISTENCE_NOT_CONFIGURED", status: 503 });
+  }
+}
+
+function challengeOperationBlocked(response, operation) {
+  return sendJson(response, 503, {
+    error: `${operation} requires a transactional server procedure and is not enabled yet.`,
+    code: "CHALLENGE_TRANSACTION_REQUIRED",
+    productionAuth: "SUPABASE"
+  });
 }
 
 async function readJson(request) {
@@ -290,9 +306,28 @@ async function handleApi(request, response, url) {
       }
       return demoDisabled(response, "Payout destinations are disabled until an approved provider and identity flow are configured.");
     }
+    const publicChallengeMatch = url.pathname.match(/^\/api\/challenges\/([^/]+)$/);
+    if (productionAuthEnabled() && request.method === "GET" && url.pathname === "/api/challenges") {
+      assertProductionAuthConfigured();
+      assertChallengePersistenceConfigured();
+      const challenges = await challengeRepository.listPublic({
+        limit: url.searchParams.get("limit") ?? undefined,
+        offset: url.searchParams.get("offset") ?? undefined
+      });
+      return sendJson(response, 200, { challenges, productionAuth: "SUPABASE" });
+    }
+    if (productionAuthEnabled() && request.method === "GET" && publicChallengeMatch) {
+      assertProductionAuthConfigured();
+      assertChallengePersistenceConfigured();
+      const challenge = await challengeRepository.getPublicById(decodeURIComponent(publicChallengeMatch[1]));
+      if (!challenge) return sendJson(response, 404, { error: "Challenge not found.", code: "CHALLENGE_NOT_FOUND" });
+      return sendJson(response, 200, { challenge, productionAuth: "SUPABASE" });
+    }
     if (productionAuthEnabled() && (url.pathname === "/api/challenges" || url.pathname.startsWith("/api/challenges/"))) {
       assertProductionAuthConfigured();
-      return productionPersistenceDisabled(response, "Challenge");
+      await requireAuthenticatedSession({ request, provider: authProvider });
+      assertChallengePersistenceConfigured();
+      return challengeOperationBlocked(response, "Challenge writes and participant reads");
     }
     if (request.method === "GET" && url.pathname === "/api/challenges") {
       return sendJson(response, 200, { challenges: state.challenges.filter(publicChallenge) });

@@ -26,6 +26,12 @@ import {
 } from "../src/backend/auth-session.mjs";
 import { AuthorizationError, requireAdminSession, requireRole, rolesForUser } from "../src/backend/authorization.mjs";
 import {
+  ChallengeRepositoryError,
+  DisabledChallengeRepository,
+  SupabaseChallengeRepository,
+  createChallengeRepositoryFromEnv
+} from "../src/backend/challenges.mjs";
+import {
   DisabledProfileRepository,
   ProfileRepositoryError,
   SupabaseProfileRepository,
@@ -388,6 +394,58 @@ test("profile repository factory fails closed without server persistence credent
   assert.ok(disabled instanceof DisabledProfileRepository);
   assert.equal(disabled.getCapabilities().configured, false);
   const configured = createProfileRepositoryFromEnv({
+    NEXT_PUBLIC_SUPABASE_URL: "https://peerarena.supabase.co",
+    SUPABASE_SERVICE_ROLE_KEY: "legacy-service-role"
+  }, async () => new Response("[]", { status: 200 }));
+  assert.equal(configured.getCapabilities().configured, true);
+  assert.equal(configured.getCapabilities().keyType, "legacy-service-role");
+});
+
+test("Supabase challenge repository reads only public open rows through a server-only key", async () => {
+  const challengeId = "550e8400-e29b-41d4-a716-446655440000";
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    calls.push({ url, init });
+    return new Response(JSON.stringify([{
+      id: challengeId,
+      creator_id: "650e8400-e29b-41d4-a716-446655440000",
+      market_id: "750e8400-e29b-41d4-a716-446655440000",
+      challenge_status: "AWAITING_ACCEPTANCE",
+      visibility: "PUBLIC",
+      stake_amount_minor: "5000",
+      currency: "GHS"
+    }]), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+
+  const repository = new SupabaseChallengeRepository({ url: "https://peerarena.supabase.co", secretKey: "sb_secret_test", fetchImpl });
+  const listed = await repository.listPublic({ limit: "10", offset: "5" });
+  const found = await repository.getPublicById(challengeId);
+
+  assert.equal(listed[0].id, challengeId);
+  assert.equal(found.id, challengeId);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].init.headers.apikey, "sb_secret_test");
+  assert.equal(calls[0].init.headers.Authorization, undefined);
+  assert.equal(new URL(calls[0].url).searchParams.get("visibility"), "eq.PUBLIC");
+  assert.equal(new URL(calls[0].url).searchParams.get("challenge_status"), "in.(AWAITING_ACCEPTANCE,ACTIVE,FUNDS_CONFIRMED)");
+  assert.equal(new URL(calls[0].url).searchParams.get("limit"), "10");
+  assert.equal(new URL(calls[0].url).searchParams.get("offset"), "5");
+  assert.equal(new URL(calls[1].url).searchParams.get("id"), `eq.${challengeId}`);
+  assert.equal(repository.getCapabilities().writes, "blocked-until-transactional-procedure");
+});
+
+test("challenge repository factory fails closed without server persistence credentials", () => {
+  const disabled = createChallengeRepositoryFromEnv({});
+  assert.ok(disabled instanceof DisabledChallengeRepository);
+  assert.equal(disabled.getCapabilities().configured, false);
+  assert.throws(() => disabled.listPublic(), (error) => {
+    assert.ok(error instanceof ChallengeRepositoryError);
+    assert.equal(error.code, "PERSISTENCE_NOT_CONFIGURED");
+    assert.equal(error.status, 503);
+    return true;
+  });
+
+  const configured = createChallengeRepositoryFromEnv({
     NEXT_PUBLIC_SUPABASE_URL: "https://peerarena.supabase.co",
     SUPABASE_SERVICE_ROLE_KEY: "legacy-service-role"
   }, async () => new Response("[]", { status: 200 }));
