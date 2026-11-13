@@ -10,6 +10,8 @@ In `AUTH_MODE=supabase`, `GET /api/challenges` and `GET /api/challenges/:id` use
 
 In `AUTH_MODE=supabase`, sports, event, live-event and market reads use the public catalogue repository in `src/backend/catalogue.mjs`. It selects only enabled sports, public event states and non-settled markets, and excludes provider payloads and official results from the API projection. `/api/state` and synthetic admin reads are disabled in Supabase mode rather than returning in-memory fixtures.
 
+Supabase-mode `/api/admin/*` reads require the server-controlled `admin` role and the server-only persistence key. `src/backend/admin.mjs` returns paginated users, challenges, financial transactions, settlement records, exact protected-table counts and security exception counts. It performs no admin writes; reset and all financial/challenge mutations remain blocked.
+
 ## Public and demo routes
 
 | Method | Route | Demo behavior |
@@ -32,11 +34,11 @@ In `AUTH_MODE=supabase`, sports, event, live-event and market reads use the publ
 
 ## Identity and user routes
 
-With the default demo mode, registration, login, recovery, profile persistence and payout-destination writes remain disabled. With explicit `AUTH_MODE=supabase`, the Auth routes use the configured Auth provider and bearer boundary, and profile GET/PATCH routes use the server-only profile repository when its key is configured. Admin routes require an `admin` role in server-controlled Supabase `app_metadata`. Challenge ownership, eligibility and payout-destination writes remain unconnected; those operations fail closed with `PERSISTENCE_NOT_CONFIGURED` in Supabase mode.
+With the default demo mode, registration, login, recovery, profile persistence and payout-destination writes remain disabled. With explicit `AUTH_MODE=supabase`, the Auth routes use the configured Auth provider and bearer boundary, and profile GET/PATCH routes use the server-only profile repository when its key is configured. Admin routes require an `admin` role in server-controlled Supabase `app_metadata`. Challenge ownership, eligibility and payout-destination writes remain unconnected; missing persistence returns `PERSISTENCE_NOT_CONFIGURED`, while configured-but-not-transactional challenge operations return `CHALLENGE_TRANSACTION_REQUIRED`.
 
 When `SUPABASE_SECRET_KEY` (preferred) or the legacy `SUPABASE_SERVICE_ROLE_KEY` is configured server-side, `GET /api/users/me` reads the matching `profiles` row and `PATCH /api/users/me` applies only the allowlisted profile fields. The repository never accepts an `auth_user_id` from the request body and never exposes the server key to the browser. Without that key, profile routes return `503 PERSISTENCE_NOT_CONFIGURED` after authentication.
 
-`GET /api/auth/session`, `POST /api/auth/logout`, `GET /api/users/me`, `GET /api/users/me/challenges`, and `GET /api/users/me/transactions` expose the synthetic session and its state.
+In demo mode, `GET /api/auth/session`, `POST /api/auth/logout`, `GET /api/users/me`, `GET /api/users/me/challenges`, and `GET /api/users/me/transactions` expose the synthetic session and its state. In Supabase mode, session and profile routes use the configured Auth/profile boundaries; user challenge and transaction reads remain blocked until durable participant and ledger repositories are available.
 
 ## Payments and payouts
 
@@ -47,6 +49,7 @@ The service modules in `src/backend/` define the replacement boundary:
 - `config.mjs` applies the default-deny activation gate.
 - `auth.mjs` defines the fail-closed Supabase Auth boundary for email/password, recovery, bearer-token lookup/logout and Google OAuth URL creation.
 - `auth-session.mjs` defines bearer-token extraction, required/optional session validation and safe logout error mapping.
+- `admin.mjs` defines server-only, read-only admin reporting over protected Supabase tables.
 - `catalogue.mjs` defines public Supabase REST reads for enabled sports, sporting events, live events and prediction markets.
 - `challenges.mjs` defines the server-only Supabase public challenge read boundary and keeps challenge writes blocked until a transactional procedure exists.
 - `profiles.mjs` defines the server-only Supabase REST repository and allowlisted profile patch validation.

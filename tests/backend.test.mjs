@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readRuntimeConfig, realMoneyGate } from "../src/backend/config.mjs";
 import {
+  AdminRepositoryError,
+  DisabledAdminRepository,
+  SupabaseAdminRepository,
+  createAdminRepositoryFromEnv
+} from "../src/backend/admin.mjs";
+import {
   assertBalanced,
   calculateSharedPoolPayout,
   fromMinorUnits,
@@ -535,4 +541,58 @@ test("catalogue repository factory fails closed without public Supabase configur
   }, async () => new Response("[]", { status: 200 }));
   assert.equal(configured.getCapabilities().configured, true);
   assert.equal(configured.getCapabilities().keyType, "legacy-anon");
+});
+
+test("Supabase admin repository uses server-only reads and exact protected-table counts", async () => {
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    calls.push({ url, init });
+    if (init.method === "HEAD") return new Response(null, { status: 200, headers: { "Content-Range": "0-0/7" } });
+    const table = new URL(url).pathname.split("/").pop();
+    const payload = table === "profiles"
+      ? [{ id: "550e8400-e29b-41d4-a716-446655440000", username: "admin", account_status: "ELIGIBLE_FOR_PLAY" }]
+      : table === "settlement_records"
+        ? [{ id: "650e8400-e29b-41d4-a716-446655440000", challenge_id: "750e8400-e29b-41d4-a716-446655440000", settlement_status: "PENDING" }]
+        : [{ id: "850e8400-e29b-41d4-a716-446655440000" }];
+    return new Response(JSON.stringify(payload), { status: 200 });
+  };
+
+  const repository = new SupabaseAdminRepository({ url: "https://peerarena.supabase.co", secretKey: "sb_secret_test", fetchImpl });
+  const overview = await repository.getOverview();
+  const users = await repository.listUsers({ limit: "10", offset: "2" });
+  const settlements = await repository.listSettlements();
+
+  assert.equal(overview.totalUsers, 7);
+  assert.equal(overview.reconciliationRequiredTransactions, 7);
+  assert.equal(users.users[0].username, "admin");
+  assert.equal(users.total, 7);
+  assert.equal(settlements.settlements[0].settlement_status, "PENDING");
+  assert.equal(settlements.total, 7);
+  assert.ok(calls.every(({ init }) => init.headers.apikey === "sb_secret_test"));
+  assert.ok(calls.every(({ init }) => init.headers.Authorization === undefined));
+  const userListCall = calls.find(({ url, init }) => init.method === "GET" && new URL(url).pathname.endsWith("/profiles"));
+  assert.equal(new URL(userListCall.url).searchParams.get("limit"), "10");
+  assert.equal(new URL(userListCall.url).searchParams.get("offset"), "2");
+  const verifiedCountCall = calls.find(({ url, init }) => init.method === "HEAD" && new URL(url).searchParams.get("account_status"));
+  assert.equal(new URL(verifiedCountCall.url).searchParams.get("account_status"), "in.(EMAIL_VERIFIED,PHONE_VERIFIED,IDENTITY_REVIEW,IDENTITY_VERIFIED,ELIGIBLE_FOR_PLAY)");
+  assert.equal(repository.getCapabilities().writes, "disabled");
+});
+
+test("admin repository factory fails closed without server persistence credentials", () => {
+  const disabled = createAdminRepositoryFromEnv({});
+  assert.ok(disabled instanceof DisabledAdminRepository);
+  assert.equal(disabled.getCapabilities().configured, false);
+  assert.throws(() => disabled.getOverview(), (error) => {
+    assert.ok(error instanceof AdminRepositoryError);
+    assert.equal(error.code, "PERSISTENCE_NOT_CONFIGURED");
+    assert.equal(error.status, 503);
+    return true;
+  });
+
+  const configured = createAdminRepositoryFromEnv({
+    NEXT_PUBLIC_SUPABASE_URL: "https://peerarena.supabase.co",
+    SUPABASE_SECRET_KEY: "sb_secret_test"
+  }, async () => new Response(null, { status: 200, headers: { "Content-Range": "0-0/0" } }));
+  assert.equal(configured.getCapabilities().configured, true);
+  assert.equal(configured.getCapabilities().keyType, "secret");
 });

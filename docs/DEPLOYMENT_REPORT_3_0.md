@@ -14,7 +14,7 @@ The static frontend was deployed to [peerarena.vercel.app](https://peerarena.ver
 
 ## Authentication status
 
-The demo uses a synthetic session by default. A fail-closed Supabase Auth adapter, server-side bearer-session boundary, explicit `AUTH_MODE=supabase` route wiring, public catalogue repository, server-only profile repository and public challenge read repository now cover email/password registration and sign-in, password recovery, bearer-token user lookup/logout, Google OAuth URL creation, allowlisted profile reads/updates, filtered public sports/event/market reads and filtered public challenge reads. Admin routes require a server-controlled `app_metadata` admin role, then remain blocked until durable admin queries exist; synthetic state and challenge mutations do not leak through Supabase mode. The default remains `AUTH_MODE=demo`; missing or invalid Supabase configuration returns `503 AUTH_NOT_CONFIGURED`, while missing server persistence credentials return `503 PERSISTENCE_NOT_CONFIGURED`. Challenge ownership, eligibility, financial authorization, email verification and MFA remain unconfigured. The exact redirect URLs, project keys and server-key configuration are listed in `docs/VERCEL_DEPLOYMENT_3_0.md`.
+The demo uses a synthetic session by default. A fail-closed Supabase Auth adapter, server-side bearer-session boundary, explicit `AUTH_MODE=supabase` route wiring, public catalogue repository, read-only server admin repository, server-only profile repository and public challenge read repository now cover email/password registration and sign-in, password recovery, bearer-token user lookup/logout, Google OAuth URL creation, allowlisted profile reads/updates, filtered public sports/event/market reads, filtered public challenge reads and protected admin reporting. Admin routes require a server-controlled `app_metadata` admin role and a server persistence key; admin writes, synthetic state and challenge mutations do not leak through Supabase mode. The default remains `AUTH_MODE=demo`; missing or invalid Supabase configuration returns `503 AUTH_NOT_CONFIGURED`, while missing server persistence credentials return `503 PERSISTENCE_NOT_CONFIGURED`. Challenge ownership, eligibility, financial authorization, email verification and MFA remain unconfigured. The exact redirect URLs, project keys and server-key configuration are listed in `docs/VERCEL_DEPLOYMENT_3_0.md`.
 
 ## Payment integration status
 
@@ -28,7 +28,7 @@ The current feed is synthetic. A licensed data-provider contract, sandbox key, r
 
 Verified locally on 2026-11-13:
 
-- `npm run check`: passed; 33 tests passed, environment gate validation passed, and JavaScript syntax checks passed.
+- `npm run check`: passed; 35 tests passed, environment gate validation passed, and JavaScript syntax checks passed.
 - `npm run build`: passed; `dist/index.html`, `dist/app.js` and `dist/styles.css` were found.
 - Temporary localhost API smoke test: passed for health, disabled real-money state, sports, live events, public challenges and the `429` rate-limit boundary.
 - `git diff --check`: passed.

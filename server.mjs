@@ -15,6 +15,7 @@ import {
   settleChallenge
 } from "./src/demo-engine.mjs";
 import { AuthProviderError, createAuthProviderFromEnv } from "./src/backend/auth.mjs";
+import { AdminRepositoryError, createAdminRepositoryFromEnv } from "./src/backend/admin.mjs";
 import { requireAuthenticatedSession, revokeAuthenticatedSession } from "./src/backend/auth-session.mjs";
 import { requireAdminSession } from "./src/backend/authorization.mjs";
 import { CatalogueRepositoryError, createCatalogueRepositoryFromEnv } from "./src/backend/catalogue.mjs";
@@ -28,6 +29,7 @@ const distRoot = path.join(projectRoot, "dist");
 let state = createInitialState();
 const runtimeConfig = readRuntimeConfig();
 const authProvider = createAuthProviderFromEnv();
+const adminRepository = createAdminRepositoryFromEnv();
 const catalogueRepository = createCatalogueRepositoryFromEnv();
 const challengeRepository = createChallengeRepositoryFromEnv();
 const profileRepository = createProfileRepositoryFromEnv();
@@ -101,6 +103,19 @@ function assertCataloguePersistenceConfigured() {
   if (!catalogueRepository.getCapabilities().configured) {
     throw new CatalogueRepositoryError("Catalogue persistence is not configured.", { code: "PERSISTENCE_NOT_CONFIGURED", status: 503 });
   }
+}
+
+function assertAdminPersistenceConfigured() {
+  if (!adminRepository.getCapabilities().configured) {
+    throw new AdminRepositoryError("Admin persistence is not configured.", { code: "PERSISTENCE_NOT_CONFIGURED", status: 503 });
+  }
+}
+
+function adminPage(url) {
+  return {
+    limit: url.searchParams.get("limit") ?? undefined,
+    offset: url.searchParams.get("offset") ?? undefined
+  };
 }
 
 function challengeOperationBlocked(response, operation) {
@@ -229,24 +244,30 @@ async function handleApi(request, response, url) {
     if (productionAuthEnabled() && url.pathname.startsWith("/api/admin/")) {
       assertProductionAuthConfigured();
       await requireAdminSession({ request, provider: authProvider });
-      return productionPersistenceDisabled(response, "Admin");
+      assertAdminPersistenceConfigured();
     }
     if (request.method === "GET" && url.pathname === "/api/admin/overview") {
+      if (productionAuthEnabled()) return sendJson(response, 200, await adminRepository.getOverview());
       return sendJson(response, 200, getAdminOverview(state));
     }
     if (request.method === "GET" && url.pathname === "/api/admin/users") {
+      if (productionAuthEnabled()) return sendJson(response, 200, await adminRepository.listUsers(adminPage(url)));
       return sendJson(response, 200, { users: [{ ...state.user, balance: undefined }], total: 4, verified: 3 });
     }
     if (request.method === "GET" && url.pathname === "/api/admin/challenges") {
+      if (productionAuthEnabled()) return sendJson(response, 200, await adminRepository.listChallenges(adminPage(url)));
       return sendJson(response, 200, { challenges: state.challenges });
     }
     if (request.method === "GET" && url.pathname === "/api/admin/transactions") {
+      if (productionAuthEnabled()) return sendJson(response, 200, await adminRepository.listTransactions(adminPage(url)));
       return sendJson(response, 200, { transactions: state.transactions });
     }
     if (request.method === "GET" && url.pathname === "/api/admin/settlements") {
+      if (productionAuthEnabled()) return sendJson(response, 200, await adminRepository.listSettlements(adminPage(url)));
       return sendJson(response, 200, { settlements: state.challenges.filter((challenge) => challenge.settlement).map((challenge) => ({ challengeId: challenge.id, ...challenge.settlement })) });
     }
     if (request.method === "GET" && url.pathname === "/api/admin/security") {
+      if (productionAuthEnabled()) return sendJson(response, 200, await adminRepository.getSecurity());
       return sendJson(response, 200, { realMoneyGate: "BLOCKED", authentication: productionAuthEnabled() ? "SUPABASE_BEARER_ADMIN" : "DEMO_SESSION_ONLY", suspiciousActivity: [], providerAnomalies: [] });
     }
     if (request.method === "GET" && url.pathname === "/api/auth/session") {
