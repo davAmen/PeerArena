@@ -46,3 +46,16 @@ test("owned PostgreSQL hardening migration is default-deny and preserves integri
   assert.doesNotMatch(sql, /grant\s+all\s+on\s+all\s+tables/i);
   assert.doesNotMatch(sql, /create\s+role\s+\w+\s+login/i);
 });
+
+test("owned create-challenge procedure is narrow, idempotent and not publicly executable", async () => {
+  const sql = await readFile(new URL("../database/migrations/0002_owned_create_challenge_procedure.sql", import.meta.url), "utf8");
+  assert.match(sql, /create or replace function peerarena_api\.create_challenge/);
+  assert.match(sql, /current_actor_id/);
+  assert.match(sql, /command_idempotency/);
+  assert.match(sql, /pg_advisory_xact_lock/);
+  assert.match(sql, /self_excluded_until/);
+  assert.match(sql, /AWAITING_ACCEPTANCE/);
+  assert.match(sql, /revoke all on function peerarena_api\.create_challenge/);
+  assert.match(sql, /grant execute on function peerarena_api\.create_challenge[\s\S]*peerarena_runtime/);
+  assert.doesNotMatch(sql, /function\s+peerarena_api\.(settle|payout|payment)/i);
+});

@@ -14,7 +14,7 @@ async function readProjectFile(relativePath) {
   return readFile(path.join(projectRoot, relativePath), "utf8");
 }
 
-const [vercelText, gitignore, packageText, serverText, configText, securityEventsText, databaseText, databaseMigrationText, worklogText] = await Promise.all([
+const [vercelText, gitignore, packageText, serverText, configText, securityEventsText, databaseText, databaseMigrationText, databaseProcedureMigrationText, worklogText] = await Promise.all([
   readProjectFile("vercel.json"),
   readProjectFile(".gitignore"),
   readProjectFile("package.json"),
@@ -23,6 +23,7 @@ const [vercelText, gitignore, packageText, serverText, configText, securityEvent
   readProjectFile("src/backend/security-events.mjs"),
   readProjectFile("src/backend/database.mjs"),
   readProjectFile("database/migrations/0001_owned_postgres_hardening.sql"),
+  readProjectFile("database/migrations/0002_owned_create_challenge_procedure.sql"),
   readProjectFile("docs/WORKLOG.md")
 ]);
 
@@ -78,6 +79,9 @@ for (const requiredDatabaseMarker of ["OWNED_POSTGRES_PROVIDER", "DATABASE_ALLOW
 }
 for (const requiredMigrationMarker of ["revoke all on all tables in schema public from public", "force row level security", "reject_immutable_mutation", "chain_audit_event"]) {
   requireCondition(databaseMigrationText.toLowerCase().includes(requiredMigrationMarker.toLowerCase()), `Database hardening marker is missing: ${requiredMigrationMarker}`);
+}
+for (const requiredProcedureMarker of ["create or replace function peerarena_api.create_challenge", "current_actor_id", "command_idempotency", "revoke all on function peerarena_api.create_challenge", "peerarena_runtime"]) {
+  requireCondition(databaseProcedureMigrationText.includes(requiredProcedureMarker), `Database procedure marker is missing: ${requiredProcedureMarker}`);
 }
 requireCondition(worklogText.includes("PeerArena engineering worklog"), "Versioned engineering worklog is missing");
 

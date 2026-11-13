@@ -55,6 +55,8 @@ The service modules in `src/backend/` define the replacement boundary:
 - `profiles.mjs` defines the server-only Supabase REST repository and allowlisted profile patch validation.
 - `database.mjs` defines the owned-PostgreSQL-only configuration gate; it never logs or exposes database credentials.
 - `security-events.mjs` defines bounded, redacted runtime security telemetry; it never stores request bodies, credentials or query strings.
+
+The owned PostgreSQL procedure boundary currently exposes only a reviewed `create_challenge` procedure at the database layer. It validates actor context, active/open eligibility, self-exclusion, market outcomes, rule version, expiry, idempotency and audit evidence. It does not reserve funds, settle challenges, create payouts or call providers, and the Node demo does not connect to it yet.
 - `ledger.mjs` represents amounts as integer minor units.
 - `payments.mjs` defines the provider interface and a working mock provider.
 - `settlement.mjs` calculates a deterministic shared-pool distribution.
