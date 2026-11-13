@@ -40,6 +40,7 @@ The service modules in `src/backend/` define the replacement boundary:
 
 - `config.mjs` applies the default-deny activation gate.
 - `auth.mjs` defines the fail-closed Supabase Auth boundary for email/password, recovery, bearer-token lookup/logout and Google OAuth URL creation.
+- `auth-session.mjs` defines bearer-token extraction, required/optional session validation and safe logout error mapping.
 - `ledger.mjs` represents amounts as integer minor units.
 - `payments.mjs` defines the provider interface and a working mock provider.
 - `settlement.mjs` calculates a deterministic shared-pool distribution.

@@ -17,7 +17,9 @@
 
 `createAuthProviderFromEnv()` returns `DisabledAuthProvider` when `NEXT_PUBLIC_SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_ANON_KEY` is absent or invalid. The disabled provider returns `AUTH_NOT_CONFIGURED` and never makes a network request. `NEXT_PUBLIC_APP_URL`, when present, supplies the default redirect URL; every redirect still needs to be registered in the Supabase Auth redirect allowlist. The adapter never accepts or uses the service-role key.
 
-The adapter deliberately does not yet provide application session cookies, route middleware, account-to-`profiles` provisioning, email-confirmation UX, MFA enrollment, eligibility decisions or authorization for financial/admin routes. Those are required integration work before any account-write route can be enabled.
+`auth-session.mjs` is the server-side bearer-session boundary around that provider. It accepts only a single `Authorization: Bearer <token>` value, supports required and optional session resolution, validates the returned user shape, maps provider failures to safe `401`/`503` errors and revokes a bearer session without returning the token. It does not log or include credentials in error messages.
+
+The boundary deliberately does not yet provide application session cookies, route middleware, account-to-`profiles` provisioning, email-confirmation UX, MFA enrollment, eligibility decisions or authorization for financial/admin routes. Those are required integration work before any account-write route can be enabled.
 
 The request shapes follow Supabase's documented email/password, password-recovery, user lookup, logout and OAuth flows: [email/password sign-up](https://supabase.com/docs/reference/javascript/auth-signup), [password sign-in](https://supabase.com/docs/reference/javascript/auth-signinwithpassword), [user lookup](https://supabase.com/docs/reference/javascript/auth-getuser), [password recovery](https://supabase.com/docs/reference/javascript/auth-resetpasswordforemail), [logout](https://supabase.com/docs/reference/javascript/auth-signout), and [Google OAuth](https://supabase.com/docs/reference/javascript/auth-signinwithoauth).
 

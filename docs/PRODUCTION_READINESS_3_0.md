@@ -12,6 +12,7 @@
 - [x] Default-deny real-money activation gate.
 - [x] Local API sliding-window rate limiting with explicit `429` responses.
 - [x] Fail-closed Supabase Auth adapter with mock-fetch contract tests.
+- [x] Server-side bearer-session boundary with required/optional validation and safe logout mapping.
 - [x] Vercel static build configuration, security headers and CI workflow.
 - [x] Automated lifecycle, settlement, ledger, provider and activation-gate tests.
 

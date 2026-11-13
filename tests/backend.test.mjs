@@ -17,6 +17,13 @@ import {
   SupabaseAuthProvider,
   createAuthProviderFromEnv
 } from "../src/backend/auth.mjs";
+import {
+  SessionBoundaryError,
+  extractBearerToken,
+  optionalAuthenticatedSession,
+  requireAuthenticatedSession,
+  revokeAuthenticatedSession
+} from "../src/backend/auth-session.mjs";
 
 test("ledger converts exact minor units without floating point arithmetic", () => {
   assert.equal(toMinorUnits("20.05"), 2005n);
@@ -219,4 +226,62 @@ test("Supabase Auth adapter sanitizes provider errors and never includes credent
     assert.equal(error.message.includes(secret), false);
     return true;
   });
+});
+
+test("session boundary accepts only a well-formed bearer token and supports optional sessions", async () => {
+  assert.equal(extractBearerToken({ headers: { authorization: "Bearer token-123" } }), "token-123");
+  assert.equal(extractBearerToken({ headers: { Authorization: "bearer token-456" } }), "token-456");
+  assert.equal(extractBearerToken({ headers: {} }), null);
+  assert.throws(() => extractBearerToken({ headers: { authorization: "Basic token-123" } }), (error) => {
+    assert.ok(error instanceof SessionBoundaryError);
+    assert.equal(error.code, "AUTH_INVALID_HEADER");
+    return true;
+  });
+
+  let lookups = 0;
+  const provider = { getUser: async (token) => { lookups += 1; return { id: token, email: "demo@example.com" }; } };
+  assert.deepEqual(await optionalAuthenticatedSession({ request: { headers: {} }, provider }), { authenticated: false, user: null });
+  assert.deepEqual(await optionalAuthenticatedSession({ request: { headers: { authorization: "Bearer token-123" } }, provider }), {
+    authenticated: true,
+    user: { id: "token-123", email: "demo@example.com" }
+  });
+  assert.equal(lookups, 1);
+});
+
+test("session boundary maps provider validation and logout failures to safe HTTP errors", async () => {
+  await assert.rejects(
+    () => requireAuthenticatedSession({ request: { headers: {} }, provider: { getUser: async () => ({ id: "user-1" }) } }),
+    (error) => {
+      assert.equal(error.code, "AUTH_REQUIRED");
+      assert.equal(error.status, 401);
+      return true;
+    }
+  );
+  await assert.rejects(
+    () => requireAuthenticatedSession({ request: { headers: { authorization: "Bearer bad-token" } }, provider: {
+      getUser: async () => { throw new AuthProviderError("provider details must not escape", { code: "AUTH_PROVIDER_REJECTED", status: 400 }); }
+    } }),
+    (error) => {
+      assert.equal(error.code, "AUTH_INVALID_SESSION");
+      assert.equal(error.status, 401);
+      assert.equal(error.message.includes("provider details"), false);
+      return true;
+    }
+  );
+  await assert.rejects(
+    () => requireAuthenticatedSession({ request: { headers: { authorization: "Bearer token-123" } }, provider: new DisabledAuthProvider() }),
+    (error) => {
+      assert.equal(error.code, "AUTH_NOT_CONFIGURED");
+      assert.equal(error.status, 503);
+      return true;
+    }
+  );
+
+  let revokedToken;
+  const result = await revokeAuthenticatedSession({
+    request: { headers: { authorization: "Bearer token-123" } },
+    provider: { signOut: async (token) => { revokedToken = token; } }
+  });
+  assert.deepEqual(result, { revoked: true });
+  assert.equal(revokedToken, "token-123");
 });
