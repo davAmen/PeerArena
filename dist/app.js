@@ -2,6 +2,7 @@ const app = document.querySelector("#app");
 const filters = { search: "", sport: "All sports" };
 let state = null;
 let offline = false;
+let startupError = null;
 let selectedChallengeId = null;
 let selectedCreateEventId = null;
 let selectedCreateMarket = null;
@@ -150,7 +151,12 @@ async function api(path, options = {}) {
     headers: { "Content-Type": "application/json", ...(options.headers ?? {}) }
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || "The demo service returned an error.");
+  if (!response.ok) {
+    const error = new Error(payload.error || "The service returned an error.");
+    error.status = response.status;
+    error.code = payload.code;
+    throw error;
+  }
   return payload;
 }
 
@@ -475,6 +481,10 @@ function renderModal() {
 }
 
 function render() {
+  if (startupError) {
+    app.innerHTML = `<main class="page-content" style="min-height:100vh;display:grid;place-items:center;padding:2rem;background:#0b1117;color:#eef3f7"><section style="max-width:32rem;text-align:center"><div class="section-kicker" style="color:#8ea7b7">SERVICE STATUS</div><h1 style="margin:0.5rem 0;font-size:2rem">PeerArena is unavailable</h1><p style="color:#aebdc7;line-height:1.6">${escapeHtml(startupError.message)}</p><p style="color:#8195a3;font-size:0.9rem">No synthetic balances or fixtures were loaded. Check the backend configuration and try again.</p></section></main>`;
+    return;
+  }
   if (route() === "home") {
     app.innerHTML = renderLandingPage();
     return;
@@ -652,8 +662,13 @@ window.addEventListener("hashchange", () => { selectedChallengeId = null; render
 async function start() {
   try {
     state = await api("/api/state");
-  } catch {
+  } catch (error) {
     offline = true;
+    if (error.status || error.code) {
+      startupError = error;
+      render();
+      return;
+    }
     state = makeFallbackState();
   }
   render();

@@ -8,6 +8,8 @@ The repository also contains a fail-closed Supabase Auth adapter in `src/backend
 
 In `AUTH_MODE=supabase`, `GET /api/challenges` and `GET /api/challenges/:id` use the server-only challenge repository in `src/backend/challenges.mjs`. The repository selects only `PUBLIC` challenges in `AWAITING_ACCEPTANCE`, `ACTIVE` or `FUNDS_CONFIRMED` state, and missing server persistence configuration returns `503 PERSISTENCE_NOT_CONFIGURED` instead of reading the in-memory demo state. Challenge creation, participant reads, acceptance, cancellation and settlement remain fail-closed until a transactional server procedure can atomically enforce ownership, participant state and ledger reservations.
 
+In `AUTH_MODE=supabase`, sports, event, live-event and market reads use the public catalogue repository in `src/backend/catalogue.mjs`. It selects only enabled sports, public event states and non-settled markets, and excludes provider payloads and official results from the API projection. `/api/state` and synthetic admin reads are disabled in Supabase mode rather than returning in-memory fixtures.
+
 ## Public and demo routes
 
 | Method | Route | Demo behavior |
@@ -45,6 +47,7 @@ The service modules in `src/backend/` define the replacement boundary:
 - `config.mjs` applies the default-deny activation gate.
 - `auth.mjs` defines the fail-closed Supabase Auth boundary for email/password, recovery, bearer-token lookup/logout and Google OAuth URL creation.
 - `auth-session.mjs` defines bearer-token extraction, required/optional session validation and safe logout error mapping.
+- `catalogue.mjs` defines public Supabase REST reads for enabled sports, sporting events, live events and prediction markets.
 - `challenges.mjs` defines the server-only Supabase public challenge read boundary and keeps challenge writes blocked until a transactional procedure exists.
 - `profiles.mjs` defines the server-only Supabase REST repository and allowlisted profile patch validation.
 - `ledger.mjs` represents amounts as integer minor units.

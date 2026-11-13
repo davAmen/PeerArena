@@ -7,7 +7,7 @@
   "scripts": {
     "build": "node scripts/verify-build.mjs",
     "build:vercel": "node scripts/verify-build.mjs",
-    "check": "npm test && npm run check:env && node --check server.mjs && node --check src/demo-engine.mjs && node --check src/backend/challenges.mjs && node --check dist/app.js",
+    "check": "npm test && npm run check:env && node --check server.mjs && node --check src/demo-engine.mjs && node --check src/backend/catalogue.mjs && node --check src/backend/challenges.mjs && node --check dist/app.js",
     "check:env": "node scripts/validate-env.mjs",
     "start": "node server.mjs",
     "test": "node --test tests/*.test.mjs"

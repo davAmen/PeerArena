@@ -17,6 +17,7 @@ import {
 import { AuthProviderError, createAuthProviderFromEnv } from "./src/backend/auth.mjs";
 import { requireAuthenticatedSession, revokeAuthenticatedSession } from "./src/backend/auth-session.mjs";
 import { requireAdminSession } from "./src/backend/authorization.mjs";
+import { CatalogueRepositoryError, createCatalogueRepositoryFromEnv } from "./src/backend/catalogue.mjs";
 import { ChallengeRepositoryError, createChallengeRepositoryFromEnv } from "./src/backend/challenges.mjs";
 import { readRuntimeConfig } from "./src/backend/config.mjs";
 import { ProfileRepositoryError, createProfileRepositoryFromEnv } from "./src/backend/profiles.mjs";
@@ -27,6 +28,7 @@ const distRoot = path.join(projectRoot, "dist");
 let state = createInitialState();
 const runtimeConfig = readRuntimeConfig();
 const authProvider = createAuthProviderFromEnv();
+const catalogueRepository = createCatalogueRepositoryFromEnv();
 const challengeRepository = createChallengeRepositoryFromEnv();
 const profileRepository = createProfileRepositoryFromEnv();
 const apiRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 120 });
@@ -95,6 +97,12 @@ function assertChallengePersistenceConfigured() {
   }
 }
 
+function assertCataloguePersistenceConfigured() {
+  if (!catalogueRepository.getCapabilities().configured) {
+    throw new CatalogueRepositoryError("Catalogue persistence is not configured.", { code: "PERSISTENCE_NOT_CONFIGURED", status: 503 });
+  }
+}
+
 function challengeOperationBlocked(response, operation) {
   return sendJson(response, 503, {
     error: `${operation} requires a transactional server procedure and is not enabled yet.`,
@@ -155,12 +163,17 @@ async function handleApi(request, response, url) {
   try {
     if (!applyRateLimit(request, response, url)) return;
     if (request.method === "GET" && url.pathname === "/api/health") {
-      return sendJson(response, 200, { ok: true, demoMode: true, realMoneyEnabled: false, service: "peerarena-demo" });
+      return sendJson(response, 200, { ok: true, demoMode: !productionAuthEnabled(), realMoneyEnabled: false, service: productionAuthEnabled() ? "peerarena-api" : "peerarena-demo" });
     }
     if (request.method === "GET" && url.pathname === "/api/state") {
+      if (productionAuthEnabled()) return sendJson(response, 503, { error: "Synthetic demo state is disabled in Supabase mode.", code: "DEMO_STATE_DISABLED", productionAuth: "SUPABASE" });
       return sendJson(response, 200, state);
     }
     if (request.method === "GET" && url.pathname === "/api/live") {
+      if (productionAuthEnabled()) {
+        assertCataloguePersistenceConfigured();
+        return sendJson(response, 200, { source: "Supabase sports catalogue", freshness: "PERSISTED", events: await catalogueRepository.listLiveEvents() });
+      }
       return sendJson(response, 200, {
         source: "Synthetic event feed",
         freshness: "DEMO",
@@ -168,28 +181,55 @@ async function handleApi(request, response, url) {
       });
     }
     if (request.method === "GET" && url.pathname === "/api/sports") {
+      if (productionAuthEnabled()) {
+        assertCataloguePersistenceConfigured();
+        const sports = await catalogueRepository.listSports();
+        return sendJson(response, 200, { sports: sports.map((sport) => ({ sport: sport.name, markets: [] })) });
+      }
       return sendJson(response, 200, {
         sports: ["Football", "Basketball", "Tennis"].map((sport) => ({ sport, markets: getSupportedMarkets(sport) }))
       });
     }
     if (request.method === "GET" && url.pathname === "/api/events") {
+      if (productionAuthEnabled()) {
+        assertCataloguePersistenceConfigured();
+        return sendJson(response, 200, { events: await catalogueRepository.listEvents() });
+      }
       return sendJson(response, 200, { events: state.events });
     }
     if (request.method === "GET" && url.pathname === "/api/events/live") {
+      if (productionAuthEnabled()) {
+        assertCataloguePersistenceConfigured();
+        return sendJson(response, 200, { source: "Supabase sports catalogue", events: await catalogueRepository.listLiveEvents() });
+      }
       return sendJson(response, 200, { source: "Synthetic event feed", events: state.events.filter((event) => event.status === "LIVE") });
     }
     const eventMarketsMatch = url.pathname.match(/^\/api\/events\/([^/]+)\/markets$/);
     if (request.method === "GET" && eventMarketsMatch) {
+      if (productionAuthEnabled()) {
+        assertCataloguePersistenceConfigured();
+        const eventId = decodeURIComponent(eventMarketsMatch[1]);
+        const event = await catalogueRepository.getEventById(eventId);
+        if (!event) return sendJson(response, 404, { error: "Event not found.", code: "EVENT_NOT_FOUND" });
+        return sendJson(response, 200, { eventId: event.id, markets: await catalogueRepository.listMarketsForEvent(eventId) });
+      }
       const event = findEvent(decodeURIComponent(eventMarketsMatch[1]));
       return sendJson(response, 200, { eventId: event.id, markets: getSupportedMarkets(event.sport).map((market) => ({ market, outcomes: getPredictionChoices(event, market), status: event.status === "LIVE" ? "OPEN_OR_SUSPENDABLE" : "OPEN" })) });
     }
     const eventMatch = url.pathname.match(/^\/api\/events\/([^/]+)$/);
     if (request.method === "GET" && eventMatch) {
+      if (productionAuthEnabled()) {
+        assertCataloguePersistenceConfigured();
+        const event = await catalogueRepository.getEventById(decodeURIComponent(eventMatch[1]));
+        if (!event) return sendJson(response, 404, { error: "Event not found.", code: "EVENT_NOT_FOUND" });
+        return sendJson(response, 200, event);
+      }
       return sendJson(response, 200, findEvent(decodeURIComponent(eventMatch[1])));
     }
     if (productionAuthEnabled() && url.pathname.startsWith("/api/admin/")) {
       assertProductionAuthConfigured();
       await requireAdminSession({ request, provider: authProvider });
+      return productionPersistenceDisabled(response, "Admin");
     }
     if (request.method === "GET" && url.pathname === "/api/admin/overview") {
       return sendJson(response, 200, getAdminOverview(state));

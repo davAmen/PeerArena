@@ -26,6 +26,12 @@ import {
 } from "../src/backend/auth-session.mjs";
 import { AuthorizationError, requireAdminSession, requireRole, rolesForUser } from "../src/backend/authorization.mjs";
 import {
+  CatalogueRepositoryError,
+  DisabledCatalogueRepository,
+  SupabaseCatalogueRepository,
+  createCatalogueRepositoryFromEnv
+} from "../src/backend/catalogue.mjs";
+import {
   ChallengeRepositoryError,
   DisabledChallengeRepository,
   SupabaseChallengeRepository,
@@ -451,4 +457,82 @@ test("challenge repository factory fails closed without server persistence crede
   }, async () => new Response("[]", { status: 200 }));
   assert.equal(configured.getCapabilities().configured, true);
   assert.equal(configured.getCapabilities().keyType, "legacy-service-role");
+});
+
+test("Supabase catalogue repository exposes only enabled public sports data", async () => {
+  const eventId = "550e8400-e29b-41d4-a716-446655440000";
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    calls.push({ url, init });
+    const parsed = new URL(url);
+    if (parsed.pathname.endsWith("/sports")) {
+      return new Response(JSON.stringify([{ id: "650e8400-e29b-41d4-a716-446655440000", slug: "football", name: "Football", enabled: true }]), { status: 200 });
+    }
+    if (parsed.pathname.endsWith("/sporting_events")) {
+      return new Response(JSON.stringify([{
+        id: eventId,
+        sport_id: "650e8400-e29b-41d4-a716-446655440000",
+        competition_id: "750e8400-e29b-41d4-a716-446655440000",
+        home_participant: "Hearts of Oak",
+        away_participant: "Asante Kotoko",
+        scheduled_start: "2026-11-13T12:00:00.000Z",
+        event_status: "LIVE",
+        current_score: { scoreHome: 1, scoreAway: 0 },
+        sports: { name: "Football", slug: "football", enabled: true },
+        competitions: { name: "Ghana Premier League", country_code: "GH" }
+      }]), { status: 200 });
+    }
+    return new Response(JSON.stringify([{
+      id: "850e8400-e29b-41d4-a716-446655440000",
+      event_id: eventId,
+      market_type: "TOTAL_GOALS",
+      market_description: "Total goals",
+      possible_outcomes: ["Over 2.5", "Under 2.5"],
+      settlement_rules: { rule: "official_result" },
+      rules_version: "catalogue-v1",
+      market_status: "OPEN",
+      closing_time: "2026-11-13T11:55:00.000Z"
+    }]), { status: 200 });
+  };
+
+  const repository = new SupabaseCatalogueRepository({ url: "https://peerarena.supabase.co", publishableKey: "sb_publishable_test", fetchImpl });
+  const sports = await repository.listSports();
+  const events = await repository.listLiveEvents();
+  const event = await repository.getEventById(eventId);
+  const markets = await repository.listMarketsForEvent(eventId);
+
+  assert.equal(sports[0].name, "Football");
+  assert.equal(events[0].home, "Hearts of Oak");
+  assert.equal(events[0].league, "Ghana Premier League");
+  assert.deepEqual(events[0].live, { scoreHome: 1, scoreAway: 0 });
+  assert.equal(event.id, eventId);
+  assert.equal(markets[0].market, "TOTAL_GOALS");
+  assert.deepEqual(markets[0].outcomes, ["Over 2.5", "Under 2.5"]);
+  assert.equal(calls.length, 4);
+  assert.equal(calls[0].init.headers.apikey, "sb_publishable_test");
+  assert.equal(calls[0].init.headers.Authorization, undefined);
+  assert.equal(new URL(calls[0].url).searchParams.get("enabled"), "eq.true");
+  assert.equal(new URL(calls[1].url).searchParams.get("event_status"), "eq.LIVE");
+  assert.equal(new URL(calls[2].url).searchParams.get("id"), `eq.${eventId}`);
+  assert.equal(new URL(calls[3].url).searchParams.get("market_status"), "in.(OPEN,SUSPENDED,CLOSED)");
+  assert.equal(repository.getCapabilities().writes, "disabled");
+});
+
+test("catalogue repository factory fails closed without public Supabase configuration", () => {
+  const disabled = createCatalogueRepositoryFromEnv({});
+  assert.ok(disabled instanceof DisabledCatalogueRepository);
+  assert.equal(disabled.getCapabilities().configured, false);
+  assert.throws(() => disabled.listEvents(), (error) => {
+    assert.ok(error instanceof CatalogueRepositoryError);
+    assert.equal(error.code, "PERSISTENCE_NOT_CONFIGURED");
+    assert.equal(error.status, 503);
+    return true;
+  });
+
+  const configured = createCatalogueRepositoryFromEnv({
+    NEXT_PUBLIC_SUPABASE_URL: "https://peerarena.supabase.co",
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: "legacy-anon"
+  }, async () => new Response("[]", { status: 200 }));
+  assert.equal(configured.getCapabilities().configured, true);
+  assert.equal(configured.getCapabilities().keyType, "legacy-anon");
 });
