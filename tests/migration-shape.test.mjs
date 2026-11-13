@@ -59,3 +59,14 @@ test("owned create-challenge procedure is narrow, idempotent and not publicly ex
   assert.match(sql, /grant execute on function peerarena_api\.create_challenge[\s\S]*peerarena_runtime/);
   assert.doesNotMatch(sql, /function\s+peerarena_api\.(settle|payout|payment)/i);
 });
+
+test("owned database role bootstrap creates no credentials and constrains sessions", async () => {
+  const sql = await readFile(new URL("../database/bootstrap/0000_roles.sql", import.meta.url), "utf8");
+  assert.match(sql, /no login/i);
+  assert.match(sql, /nosuperuser/i);
+  assert.match(sql, /nobypassrls/i);
+  assert.match(sql, /statement_timeout/);
+  assert.match(sql, /idle_in_transaction_session_timeout/);
+  assert.doesNotMatch(sql, /password\s+'[^']+'/i);
+  assert.doesNotMatch(sql, /create\s+role\s+\w+\s+login/i);
+});

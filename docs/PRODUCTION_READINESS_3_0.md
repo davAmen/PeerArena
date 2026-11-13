@@ -24,6 +24,7 @@
 - [x] Redacted, bounded runtime security-event telemetry surfaced through the protected admin security view.
 - [x] Owned PostgreSQL configuration gate and default-deny hardening migration with forced RLS, append-only evidence and database integrity triggers.
 - [x] Narrow owned-PostgreSQL `create_challenge` procedure contract with actor checks, idempotency, self-exclusion and audit evidence; funds/settlement procedures remain blocked.
+- [x] Owned PostgreSQL role bootstrap contract with no credentials in source control, no-superuser/no-bypass-RLS defaults and bounded session timeouts.
 - [x] Automated lifecycle, settlement, ledger, provider and activation-gate tests.
 
 ## Blocked pending external access or approval
