@@ -14,7 +14,7 @@ async function readProjectFile(relativePath) {
   return readFile(path.join(projectRoot, relativePath), "utf8");
 }
 
-const [vercelText, gitignore, packageText, serverText, configText, paymentsText, securityEventsText, databaseText, databaseMigrationText, databaseProcedureMigrationText, databaseAcceptanceMigrationText, databaseSettlementMigrationText, databaseBootstrapText, worklogText] = await Promise.all([
+const [vercelText, gitignore, packageText, serverText, configText, paymentsText, securityEventsText, databaseText, ownedPostgresText, databaseMigrationText, databaseProcedureMigrationText, databaseAcceptanceMigrationText, databaseSettlementMigrationText, databaseBootstrapText, worklogText] = await Promise.all([
   readProjectFile("vercel.json"),
   readProjectFile(".gitignore"),
   readProjectFile("package.json"),
@@ -23,6 +23,7 @@ const [vercelText, gitignore, packageText, serverText, configText, paymentsText,
   readProjectFile("src/backend/payments.mjs"),
   readProjectFile("src/backend/security-events.mjs"),
   readProjectFile("src/backend/database.mjs"),
+  readProjectFile("src/backend/owned-postgres.mjs"),
   readProjectFile("database/migrations/0001_owned_postgres_hardening.sql"),
   readProjectFile("database/migrations/0002_owned_create_challenge_procedure.sql"),
   readProjectFile("database/migrations/0003_owned_accept_challenge_procedure.sql"),
@@ -80,6 +81,9 @@ for (const requiredTelemetryMarker of ["SecurityEventLogger", "MAX_BUFFERED_EVEN
 
 for (const requiredDatabaseMarker of ["OWNED_POSTGRES_PROVIDER", "DATABASE_ALLOWED_HOSTS", "verify-full", "productionReady"]) {
   requireCondition(databaseText.includes(requiredDatabaseMarker) || configText.includes(requiredDatabaseMarker), `Owned database marker is missing: ${requiredDatabaseMarker}`);
+}
+for (const requiredOwnedClientMarker of ["from \"pg\"", "set_config('peerarena.actor_user_id", "peerarena_api.create_challenge", "directTableWrites: false", "rejectUnauthorized: true", "statement_timeout", "PERSISTENCE_NOT_CONFIGURED"]) {
+  requireCondition(ownedPostgresText.includes(requiredOwnedClientMarker), `Owned PostgreSQL client marker is missing: ${requiredOwnedClientMarker}`);
 }
 for (const requiredMigrationMarker of ["revoke all on all tables in schema public from public", "force row level security", "reject_immutable_mutation", "chain_audit_event"]) {
   requireCondition(databaseMigrationText.toLowerCase().includes(requiredMigrationMarker.toLowerCase()), `Database hardening marker is missing: ${requiredMigrationMarker}`);

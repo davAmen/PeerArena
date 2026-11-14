@@ -26,6 +26,7 @@
 - [x] Narrow owned-PostgreSQL `create_challenge` procedure contract with actor checks, idempotency, self-exclusion and audit evidence.
 - [x] Synthetic-only owned-PostgreSQL `accept_challenge` procedure with account locks, balance checks, double-entry reservation, idempotency and audit evidence.
 - [x] Trusted-worker-only synthetic `verify_and_settle_synthetic_challenge` procedure with closed-market/result-hash checks, deterministic winner/no-winner/void handling, balanced payout/refund ledger movement and idempotency; real provider payout remains blocked.
+- [x] Fail-closed parameterized owned PostgreSQL procedure client with transaction-local actor/request context, verified-TLS pool controls and no direct table writes; it remains disabled without a complete private configuration.
 - [x] Owned PostgreSQL role bootstrap contract with no credentials in source control, no-superuser/no-bypass-RLS defaults and bounded session timeouts.
 - [x] Automated lifecycle, settlement, ledger, provider and activation-gate tests.
 

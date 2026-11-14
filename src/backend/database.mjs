@@ -31,6 +31,7 @@ export function readDatabaseConfig(env = process.env) {
   const provider = (text(env.DATABASE_PROVIDER) || DISABLED_PROVIDER).toLowerCase();
   const { parsed, error: urlError } = parseUrl(env.DATABASE_URL);
   const sslMode = (text(env.DATABASE_SSL_MODE) || (appEnv === "production" ? "verify-full" : "disable")).toLowerCase();
+  const caCertificate = text(env.DATABASE_CA_CERT);
   const allowlistedHosts = allowedHosts(env.DATABASE_ALLOWED_HOSTS);
   const errors = [];
   const urlSslMode = parsed?.searchParams.get("sslmode")?.toLowerCase();
@@ -41,6 +42,9 @@ export function readDatabaseConfig(env = process.env) {
   if (provider === DISABLED_PROVIDER && parsed) errors.push("DATABASE_URL cannot be used while DATABASE_PROVIDER is disabled.");
   if (!SUPPORTED_SSL_MODES.has(sslMode)) errors.push("DATABASE_SSL_MODE is invalid.");
   if (urlSslMode && urlSslMode !== sslMode) errors.push("DATABASE_URL sslmode must match DATABASE_SSL_MODE.");
+  if (provider === OWNED_POSTGRES_PROVIDER && appEnv === "production" && sslMode === "verify-full" && !caCertificate) {
+    errors.push("DATABASE_CA_CERT is required for production verify-full TLS.");
+  }
 
   const host = parsed?.hostname.toLowerCase() ?? "";
   const hostAllowlisted = Boolean(host) && allowlistedHosts.includes(host);
@@ -52,6 +56,7 @@ export function readDatabaseConfig(env = process.env) {
     configured,
     host: host || undefined,
     sslMode,
+    caConfigured: Boolean(caCertificate),
     allowlistedHosts,
     hostAllowlisted,
     productionReady,

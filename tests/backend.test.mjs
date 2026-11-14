@@ -4,6 +4,11 @@ import { createHmac } from "node:crypto";
 import { readRuntimeConfig, realMoneyGate } from "../src/backend/config.mjs";
 import { ownedDatabaseGate, readDatabaseConfig } from "../src/backend/database.mjs";
 import {
+  DisabledOwnedPostgresClient,
+  OwnedPostgresProcedureClient,
+  createOwnedPostgresProcedureClientFromEnv
+} from "../src/backend/owned-postgres.mjs";
+import {
   AdminRepositoryError,
   DisabledAdminRepository,
   SupabaseAdminRepository,
@@ -264,10 +269,12 @@ test("owned database configuration accepts only allowlisted PostgreSQL with veri
     DATABASE_PROVIDER: "owned-postgres",
     DATABASE_URL: "postgresql://peerarena@db.internal/peerarena",
     DATABASE_SSL_MODE: "verify-full",
+    DATABASE_CA_CERT: "-----BEGIN CERTIFICATE-----test-ca-----END CERTIFICATE-----",
     DATABASE_ALLOWED_HOSTS: "db.internal"
   });
   assert.equal(owned.productionReady, true);
   assert.equal(owned.host, "db.internal");
+  assert.equal(owned.caConfigured, true);
   assert.equal(ownedDatabaseGate(owned).enabled, true);
 
   const hosted = readDatabaseConfig({
@@ -289,6 +296,120 @@ test("owned database configuration accepts only allowlisted PostgreSQL with veri
   });
   assert.equal(mismatchedTls.productionReady, false);
   assert.match(mismatchedTls.errors.join(" "), /sslmode must match/);
+});
+
+function fakePostgresPool({ failProcedure = false } = {}) {
+  const calls = [];
+  const connection = {
+    async query(text, values = []) {
+      calls.push({ text, values });
+      if (failProcedure && text.includes("peerarena_api.create_challenge")) {
+        const error = new Error("simulated procedure failure");
+        error.code = "23514";
+        throw error;
+      }
+      if (text === "select 1 as ok") return { rows: [{ ok: 1 }] };
+      if (text.includes("peerarena_api.create_challenge")) return { rows: [{ challenge_id: "challenge-1", challenge_status: "AWAITING_ACCEPTANCE", replayed: false }] };
+      if (text.includes("peerarena_api.accept_challenge")) return { rows: [{ challenge_id: "challenge-1", challenge_status: "FUNDS_CONFIRMED", ledger_transaction_id: "ledger-1", replayed: false }] };
+      if (text.includes("peerarena_api.verify_and_settle_synthetic_challenge")) return { rows: [{ challenge_id: "challenge-1", challenge_status: "SETTLED", settlement_id: "settlement-1", ledger_transaction_id: "ledger-2", settlement_status: "COMPLETED", replayed: false }] };
+      return { rows: [] };
+    },
+    release() {
+      calls.push({ text: "release", values: [] });
+    }
+  };
+  return {
+    pool: {
+      async connect() { return connection; },
+      async end() {}
+    },
+    calls
+  };
+}
+
+test("owned PostgreSQL client stays fail-closed without a complete private configuration", async () => {
+  const client = createOwnedPostgresProcedureClientFromEnv({});
+  assert.ok(client instanceof DisabledOwnedPostgresClient);
+  assert.equal(client.getCapabilities().configured, false);
+  await assert.rejects(client.health(), (error) => {
+    assert.equal(error.code, "PERSISTENCE_NOT_CONFIGURED");
+    assert.equal(error.status, 503);
+    return true;
+  });
+});
+
+test("owned PostgreSQL client uses only reviewed procedures and transaction-local context", async () => {
+  const fake = fakePostgresPool();
+  const client = new OwnedPostgresProcedureClient({
+    pool: fake.pool,
+    config: { sslMode: "verify-full" }
+  });
+  const actorUserId = "11111111-1111-4111-8111-111111111111";
+  const challengeId = "22222222-2222-4222-8222-222222222222";
+  const workerUserId = "33333333-3333-4333-8333-333333333333";
+
+  assert.deepEqual(await client.health(), { ok: true, provider: "owned-postgres" });
+  assert.equal((await client.createChallenge({
+    actorUserId,
+    requestId: "req-create-1",
+    marketId: challengeId,
+    visibility: "PUBLIC",
+    creatorSide: "HOME",
+    stakeMinor: "1000",
+    currency: "usd",
+    rulesVersion: "rules-v1",
+    expiresAt: "2026-11-15T00:00:00Z",
+    idempotencyKey: "idem-create-1"
+  })).challenge_status, "AWAITING_ACCEPTANCE");
+  assert.equal((await client.acceptChallenge({
+    actorUserId,
+    requestId: "req-accept-1",
+    challengeId,
+    side: "AWAY",
+    idempotencyKey: "idem-accept-1"
+  })).challenge_status, "FUNDS_CONFIRMED");
+  assert.equal((await client.verifyAndSettleSyntheticChallenge({
+    workerUserId,
+    requestId: "req-settle-1",
+    challengeId,
+    verifiedOutcome: "HOME",
+    providerEventId: "synthetic-event-1",
+    resultPayloadHash: "a".repeat(64),
+    rulesVersion: "rules-v1",
+    idempotencyKey: "idem-settle-1"
+  })).settlement_status, "COMPLETED");
+
+  const queryText = fake.calls.map(({ text }) => text).join("\n");
+  assert.match(queryText, /peerarena\.actor_user_id/);
+  assert.match(queryText, /peerarena\.request_id/);
+  assert.match(queryText, /peerarena\.worker_user_id/);
+  assert.match(queryText, /peerarena_api\.create_challenge/);
+  assert.match(queryText, /peerarena_api\.accept_challenge/);
+  assert.match(queryText, /peerarena_api\.verify_and_settle_synthetic_challenge/);
+  assert.doesNotMatch(queryText, /insert\s+into\s+public/i);
+  assert.doesNotMatch(queryText, /update\s+public/i);
+  assert.equal(client.getCapabilities().directTableWrites, false);
+});
+
+test("owned PostgreSQL client rolls back and maps procedure failures safely", async () => {
+  const fake = fakePostgresPool({ failProcedure: true });
+  const client = new OwnedPostgresProcedureClient({ pool: fake.pool, config: { sslMode: "verify-full" } });
+  await assert.rejects(client.createChallenge({
+    actorUserId: "11111111-1111-4111-8111-111111111111",
+    marketId: "22222222-2222-4222-8222-222222222222",
+    visibility: "PUBLIC",
+    creatorSide: "HOME",
+    stakeMinor: "1000",
+    currency: "USD",
+    rulesVersion: "rules-v1",
+    expiresAt: "2026-11-15T00:00:00Z",
+    idempotencyKey: "idem-create-2"
+  }), (error) => {
+    assert.equal(error.code, "DATABASE_COMMAND_FAILED");
+    assert.equal(error.status, 503);
+    return true;
+  });
+  assert.ok(fake.calls.some(({ text }) => text === "rollback"));
 });
 
 test("rate limiter returns retry metadata and resets after its window", () => {
