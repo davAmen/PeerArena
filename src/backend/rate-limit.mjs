@@ -1,16 +1,22 @@
 export class SlidingWindowRateLimiter {
-  constructor({ windowMs = 60_000, maxRequests = 60, now = () => Date.now() } = {}) {
+  constructor({ windowMs = 60_000, maxRequests = 60, maxKeys = 10_000, now = () => Date.now() } = {}) {
     if (!Number.isInteger(windowMs) || windowMs <= 0) throw new Error("windowMs must be a positive integer.");
     if (!Number.isInteger(maxRequests) || maxRequests <= 0) throw new Error("maxRequests must be a positive integer.");
+    if (!Number.isInteger(maxKeys) || maxKeys < 1 || maxKeys > 100_000) throw new Error("maxKeys must be between 1 and 100000.");
     this.windowMs = windowMs;
     this.maxRequests = maxRequests;
+    this.maxKeys = maxKeys;
     this.now = now;
     this.buckets = new Map();
   }
 
   consume(key) {
-    const identifier = String(key || "anonymous");
+    const requestedIdentifier = String(key || "anonymous");
     const currentTime = this.now();
+    const overflowIdentifier = "__peerarena_rate_limit_overflow__";
+    const identifier = this.buckets.has(requestedIdentifier) || this.buckets.size < Math.max(0, this.maxKeys - 1)
+      ? requestedIdentifier
+      : overflowIdentifier;
     const current = this.buckets.get(identifier);
     const bucket = current && current.resetAt > currentTime
       ? current

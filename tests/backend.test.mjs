@@ -424,6 +424,15 @@ test("rate limiter returns retry metadata and resets after its window", () => {
   assert.equal(limiter.consume("client-1").allowed, true);
 });
 
+test("rate limiter caps distinct keys and throttles overflow safely", () => {
+  const limiter = new SlidingWindowRateLimiter({ windowMs: 1_000, maxRequests: 1, maxKeys: 2 });
+  assert.equal(limiter.consume("client-1").allowed, true);
+  assert.equal(limiter.consume("client-2").allowed, true);
+  assert.equal(limiter.consume("client-3").allowed, false);
+  assert.equal(limiter.consume("client-4").allowed, false);
+  assert.ok(limiter.buckets.size <= 2);
+});
+
 test("Supabase Auth remains disabled when public project configuration is absent", () => {
   const provider = createAuthProviderFromEnv({});
   assert.ok(provider instanceof DisabledAuthProvider);
