@@ -18,7 +18,7 @@ This repository is a working static frontend plus a local Node HTTP demo service
 
 The PeerArena demo is deployed at [https://peerarena.vercel.app](https://peerarena.vercel.app). Vercel authentication protection remains enabled, so anonymous visitors are not granted access. The same-origin demo API is routed through rewrite-backed `api/index.mjs`; it uses synthetic in-memory state only. No production database, first-party authentication, payment, payout or real-money path is connected.
 
-The latest production deployment is `dpl_54HvhCeMxnWctzRDBQSy5TTRyenx` and reported `READY`. Vercel's `vercel_authentication` protection was observed after deployment and was not changed. The post-deployment `/api/health`, `/api/readiness`, and `/api/events/live` smoke tests passed; readiness confirmed `frontend=ACTIVE`, `api=ACTIVE`, `payments=DISABLED`, `payouts=DISABLED` and `realMoney=BLOCKED`. The deployment contains one rewrite-backed `api/index` Vercel Function, production-origin enforcement is present in the request handler, misconfigured production demo authentication fails closed with `503 PRODUCTION_AUTH_REQUIRED`, and the process-local rate limiters cap distinct keys with overflow throttling.
+The latest production deployment is `dpl_GSHa2NjuYx81CsGZ8qLQPn3PDhFo` and reported `READY`. Vercel's `vercel_authentication` protection was observed after deployment and was not changed. The post-deployment `/api/health`, `/api/readiness`, and `/api/events/live` smoke tests passed; readiness confirmed `frontend=ACTIVE`, `api=ACTIVE`, `payments=DISABLED`, `payouts=DISABLED` and `realMoney=BLOCKED`. The deployment contains one rewrite-backed `api/index` Vercel Function, production-origin enforcement is present in the request handler, misconfigured production demo authentication fails closed with `503 PRODUCTION_AUTH_REQUIRED`, process-local rate limiters cap distinct keys with overflow throttling, and spoofable forwarded identity is ignored by default.
 
 ## Exact access/configuration needed
 
@@ -44,6 +44,8 @@ The latest production deployment is `dpl_54HvhCeMxnWctzRDBQSy5TTRyenx` and repor
 ## Environment rules
 
 Use `.env.example` as the name-only template. Production values belong in the selected secret managers. Preview environments must not receive live payment credentials. `REAL_MONEY_ENABLED=true` is insufficient by itself: `APP_ENV`, operational authorization, gaming authorization, provider approval, safeguarding and independent security review must all pass the gate.
+
+`TRUST_PROXY_HEADERS` defaults to `false`; do not enable it unless the deployed edge proxy is verified to strip and rewrite `x-forwarded-for`. The runtime ignores forwarded identity by default so callers cannot rotate spoofed addresses to evade the in-process limiter.
 
 ## Official configuration references
 
