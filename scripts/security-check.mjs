@@ -82,7 +82,7 @@ for (const requiredRewriteMarker of ["/api/:path*", "/api/index?__peerarena_path
   requireCondition(vercelText.includes(requiredRewriteMarker), `Vercel API rewrite marker is missing: ${requiredRewriteMarker}`);
 }
 
-for (const requiredTelemetryMarker of ["SecurityEventLogger", "MAX_BUFFERED_EVENTS", "MAX_SNAPSHOT_SIZE", "new URL"]) {
+for (const requiredTelemetryMarker of ["SecurityEventLogger", "MAX_BUFFERED_EVENTS", "MAX_SNAPSHOT_SIZE", "new URL", "severityFor", "onAlert", "securityAlert"]) {
   requireCondition(securityEventsText.includes(requiredTelemetryMarker) || serverText.includes(requiredTelemetryMarker), `Security telemetry marker is missing: ${requiredTelemetryMarker}`);
 }
 

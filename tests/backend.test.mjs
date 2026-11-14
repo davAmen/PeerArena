@@ -862,7 +862,8 @@ test("admin repository factory fails closed without server persistence credentia
 
 test("security event logger redacts paths, bounds memory and preserves safe summaries", () => {
   const emitted = [];
-  const logger = new SecurityEventLogger({ maxEvents: 2, now: () => Date.parse("2026-11-13T00:00:00.000Z"), onEvent: (event) => emitted.push(event) });
+  const alerts = [];
+  const logger = new SecurityEventLogger({ maxEvents: 2, now: () => Date.parse("2026-11-13T00:00:00.000Z"), onEvent: (event) => emitted.push(event), onAlert: (event) => alerts.push(event) });
   logger.record("csrf origin rejected", {
     requestId: "request-1\nsecret",
     method: "POST",
@@ -879,6 +880,11 @@ test("security event logger redacts paths, bounds memory and preserves safe summ
   assert.equal(logger.snapshot()[1].path, "/api/health");
   assert.equal(logger.summary().bufferedEvents, 2);
   assert.deepEqual(logger.summary().byType, { AUTH_REQUIRED: 1, RATE_LIMITED: 1 });
+  assert.deepEqual(logger.summary().bySeverity, { MODERATE: 2 });
+  assert.equal(alerts.length, 1);
+  assert.equal(alerts[0].type, "CSRF_ORIGIN_REJECTED");
+  assert.equal(alerts[0].severity, "HIGH");
   assert.equal(logger.snapshot()[1].requestId, undefined);
   assert.equal(logger.snapshot()[1].code, "RATE_LIMITED");
+  assert.equal(logger.snapshot()[1].severity, "MODERATE");
 });

@@ -38,7 +38,8 @@ const profileRepository = createProfileRepositoryFromEnv();
 const apiRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 120 });
 const mutationRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 30 });
 const securityEvents = new SecurityEventLogger({
-  onEvent: (event) => console.warn(JSON.stringify({ securityEvent: event }))
+  onEvent: (event) => console.warn(JSON.stringify({ securityEvent: event })),
+  onAlert: (event) => console.error(JSON.stringify({ securityAlert: event }))
 });
 
 const contentTypes = {
