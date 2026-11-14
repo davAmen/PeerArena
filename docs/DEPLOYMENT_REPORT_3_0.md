@@ -8,7 +8,7 @@ The repository contains the existing PeerArena simulated-funds experience plus t
 
 The protected PeerArena demo was deployed to [peerarena.vercel.app](https://peerarena.vercel.app). Vercel authentication protection remains enabled, so anonymous visitors are not granted access. `dist` supplies the frontend and `api/[...path].mjs` exposes the synthetic `/api/*` contract through a Vercel Function; state is in-memory and resets across function instances.
 
-Latest verified production deployment: `dpl_37uqoEcFmVhRhruufHDvN3fTv3eF`, status `READY`, target `production`, with `vercel_authentication` protection. Inspector: [Vercel deployment](https://vercel.com/amenukudavid20-9818s-projects/peerarena/37uqoEcFmVhRhruufHDvN3fTv3eF).
+Latest verified production deployment: `dpl_AkrZd2qfE3gzfEnwe38bWeRmix31`, status `READY`, target `production`, with `vercel_authentication` protection. Inspector: [Vercel deployment](https://vercel.com/amenukudavid20-9818s-projects/peerarena/AkrZd2qfE3gzfEnwe38bWeRmix31).
 
 The protected pilot also exposes `GET /api/readiness`, a secret-free capability report for authorized visitors and operators. The live response confirms the frontend/API are active, while database/auth/payment/real-money capabilities remain gated. The latest live smoke test also confirmed `/api/events/live`, `/api/events/evt_lakers_celtics`, and `/api/events/evt_lakers_celtics/markets` through the rewrite-backed single-function router. The protected `/api/admin/security` surface now reports bounded severity counts and high/critical alert capability. See `docs/STRANGER_QUICKSTART.md` for the shortest walkthrough.
 
@@ -37,7 +37,7 @@ Verified locally on 2026-11-14:
 - `npm run security:check`: passed; security headers/CSP, secret-file hygiene, default-deny real-money configuration and HTTP hardening markers verified.
 - `npm audit --omit=dev --audit-level=moderate`: passed; 0 vulnerabilities reported.
 - Provider adapter contract tests: passed for SeevPlus/Paystack sandbox request shape, idempotency, server-side authentication, HMAC signatures, replay-window rejection and disabled payout capability.
-- Production Vercel smoke test: passed for `/api/readiness`, `/api/events/live`, event detail, event markets, public challenges, nested challenge participants, disabled payment lookup and `/api/admin/security` on `dpl_37uqoEcFmVhRhruufHDvN3fTv3eF`; response confirmed synthetic-only market data, disabled payment/payout paths and a blocked real-money gate.
+- Production Vercel smoke test: passed for `/api/health`, `/api/readiness`, `/api/events/live` and `/api/admin/security` on `dpl_AkrZd2qfE3gzfEnwe38bWeRmix31`; Vercel reported one function, protection remained enabled, and the response confirmed synthetic-only market data, disabled payment/payout paths and a blocked real-money gate.
 - Temporary localhost API smoke test: passed for health, disabled real-money state, sports, live events, public challenges and the `429` rate-limit boundary.
 - `git diff --check`: passed.
 - PostgreSQL migration execution: not run; no connected private PostgreSQL instance was available.
