@@ -17,6 +17,9 @@ test("Vercel API adapter delegates to the hardened Node request handler", async 
   assert.match(server, /PROTECTED_SYNTHETIC_PILOT/);
   assert.match(server, /runtimeConfig\.appEnv === "production"/);
   assert.match(server, /PRODUCTION_AUTH_REQUIRED/);
+  assert.match(server, /MAX_JSON_BODY_BYTES/);
+  assert.match(server, /REQUEST_BODY_TOO_LARGE/);
+  assert.match(server, /INVALID_PATH/);
   assert.match(router, /handleRequest\(routedRequest\(request\), response\)/);
   assert.match(JSON.parse(packageText).scripts.check, /node --check api\/index\.mjs/);
   assert.equal(vercel.outputDirectory, "dist");

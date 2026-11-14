@@ -28,6 +28,7 @@ import { SecurityEventLogger } from "./src/backend/security-events.mjs";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const distRoot = path.join(projectRoot, "dist");
+const MAX_JSON_BODY_BYTES = 1_000_000;
 let state = createInitialState();
 const runtimeConfig = readRuntimeConfig();
 const authProvider = createAuthProviderFromEnv();
@@ -84,7 +85,9 @@ function sendError(response, status, error) {
     "DEMO_STATE_DISABLED",
     "ORIGIN_NOT_CONFIGURED",
     "CSRF_ORIGIN_REJECTED",
-    "RATE_LIMITED"
+    "RATE_LIMITED",
+    "REQUEST_BODY_TOO_LARGE",
+    "INVALID_PATH"
   ]);
   const exposeMessage = actualStatus < 500 || safeCodes.has(error?.code);
   const payload = {
@@ -225,9 +228,11 @@ function challengeOperationBlocked(response, operation) {
 
 async function readJson(request) {
   let raw = "";
+  let bodyBytes = 0;
   for await (const chunk of request) {
+    bodyBytes += Buffer.isBuffer(chunk) ? chunk.length : Buffer.byteLength(String(chunk));
+    if (bodyBytes > MAX_JSON_BODY_BYTES) throw requestSecurityError("Request body is too large.", "REQUEST_BODY_TOO_LARGE", 413);
     raw += chunk;
-    if (raw.length > 1_000_000) throw new Error("Request body is too large.");
   }
   if (!raw) return {};
   try {
@@ -570,7 +575,12 @@ async function handleApi(request, response, url) {
 }
 
 async function serveStatic(request, response, url) {
-  let requested = decodeURIComponent(url.pathname);
+  let requested;
+  try {
+    requested = decodeURIComponent(url.pathname);
+  } catch {
+    return sendError(response, 400, requestSecurityError("Invalid URL encoding.", "INVALID_PATH", 400));
+  }
   if (requested === "/") requested = "/index.html";
   if (requested.includes("..")) return sendError(response, 400, "Invalid path.");
   const filePath = path.join(distRoot, requested);
