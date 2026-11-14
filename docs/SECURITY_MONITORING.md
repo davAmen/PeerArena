@@ -4,7 +4,7 @@
 
 - The Node service emits a fresh `X-Request-ID` for every response.
 - Production responses add HSTS; all environments use CSP, `object-src 'none'`, `form-action 'self'`, `frame-ancestors 'none'`, no-sniff, restrictive referrer and permissions policies, and same-origin isolation headers.
-- Production browser mutations reject an untrusted `Origin` and fail closed when `NEXT_PUBLIC_APP_URL` is missing or invalid.
+- Production and Vercel-hosted browser mutations reject an untrusted `Origin` and fail closed when `NEXT_PUBLIC_APP_URL` is missing or invalid.
 - HTTP header size, request timeout, header timeout, keep-alive timeout and JSON body size are bounded.
 - 5xx responses use a generic message unless the error code is an explicitly safe configuration/boundary code; request IDs remain available for investigation.
 - Runtime security events are normalized, redacted to pathname/method/status/code, assigned a severity, bounded to an in-process ring buffer and exposed only through the protected admin security view. That view returns bounded severity counts and a recent high/critical alert list. High/critical events also emit a `securityAlert` log signal for the attached runtime log sink. Query strings, bodies, authorization headers, IP addresses and provider payloads are not stored.
