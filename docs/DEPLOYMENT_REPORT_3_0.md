@@ -37,7 +37,7 @@ Verified locally on 2026-11-14:
 - `npm run security:check`: passed; security headers/CSP, secret-file hygiene, default-deny real-money configuration and HTTP hardening markers verified.
 - `npm audit --omit=dev --audit-level=moderate`: passed; 0 vulnerabilities reported.
 - Provider adapter contract tests: passed for SeevPlus/Paystack sandbox request shape, idempotency, server-side authentication, HMAC signatures, replay-window rejection and disabled payout capability.
-- Production Vercel smoke test: passed for `/api/readiness`, `/api/events/live`, event detail and event markets on `dpl_9yGV574x5qMzfG2AG2J1vtUbJTZ6`; response confirmed synthetic-only market data, disabled payment/payout paths and a blocked real-money gate.
+- Production Vercel smoke test: passed for `/api/readiness`, `/api/events/live`, event detail, event markets, public challenges, nested challenge participants and disabled payment lookup on `dpl_9yGV574x5qMzfG2AG2J1vtUbJTZ6`; response confirmed synthetic-only market data, disabled payment/payout paths and a blocked real-money gate.
 - Temporary localhost API smoke test: passed for health, disabled real-money state, sports, live events, public challenges and the `429` rate-limit boundary.
 - `git diff --check`: passed.
 - PostgreSQL migration execution: not run; no connected private PostgreSQL instance was available.
