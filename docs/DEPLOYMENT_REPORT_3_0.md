@@ -38,6 +38,7 @@ Verified locally on 2026-11-14:
 - `npm audit --omit=dev --audit-level=moderate`: passed; 0 vulnerabilities reported.
 - Provider adapter contract tests: passed for SeevPlus/Paystack sandbox request shape, idempotency, server-side authentication, HMAC signatures, replay-window rejection and disabled payout capability.
 - Production Vercel smoke test: passed for `/api/health`, `/api/readiness`, and `/api/events/live` on `dpl_BakGkmVbnvheoKTyJGZTCWyVcWvd`; Vercel reported one function, protection remained enabled, production-origin hardening was deployed without changing demo mode, and the response confirmed synthetic-only market data, disabled payment/payout paths and a blocked real-money gate.
+- Isolated production-handler security test: an untrusted mutation `Origin` returned `403 CSRF_ORIGIN_REJECTED`, emitted a high-severity `securityAlert`, and changed no state.
 - Temporary localhost API smoke test: passed for health, disabled real-money state, sports, live events, public challenges and the `429` rate-limit boundary.
 - `git diff --check`: passed.
 - PostgreSQL migration execution: not run; no connected private PostgreSQL instance was available.
