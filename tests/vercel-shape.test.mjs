@@ -16,6 +16,7 @@ test("Vercel API adapter delegates to the hardened Node request handler", async 
   assert.match(server, /url\.pathname === "\/api\/readiness"/);
   assert.match(server, /PROTECTED_SYNTHETIC_PILOT/);
   assert.match(server, /runtimeConfig\.appEnv === "production"/);
+  assert.match(server, /PRODUCTION_AUTH_REQUIRED/);
   assert.match(router, /handleRequest\(routedRequest\(request\), response\)/);
   assert.match(JSON.parse(packageText).scripts.check, /node --check api\/index\.mjs/);
   assert.equal(vercel.outputDirectory, "dist");

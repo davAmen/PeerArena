@@ -77,6 +77,7 @@ function sendError(response, status, error) {
   const actualStatus = Number.isInteger(error?.status) ? error.status : status;
   const safeCodes = new Set([
     "AUTH_NOT_CONFIGURED",
+    "PRODUCTION_AUTH_REQUIRED",
     "PERSISTENCE_NOT_CONFIGURED",
     "CHALLENGE_TRANSACTION_REQUIRED",
     "DEMO_STATE_DISABLED",
@@ -99,12 +100,13 @@ function productionAuthEnabled() {
 
 function readinessSnapshot() {
   const authConfigured = authProvider.getCapabilities().configured === true;
+  const productionAuthRequired = runtimeConfig.appEnv === "production" && !productionAuthEnabled();
   return Object.freeze({
-    release: "PROTECTED_SYNTHETIC_PILOT",
+    release: productionAuthRequired ? "PRODUCTION_CONFIGURATION_BLOCKED" : "PROTECTED_SYNTHETIC_PILOT",
     frontend: "ACTIVE",
-    api: "ACTIVE",
+    api: productionAuthRequired ? "BLOCKED" : "ACTIVE",
     access: "VERCEL_AUTHENTICATION_REQUIRED",
-    authentication: productionAuthEnabled() ? (authConfigured ? "ACTIVE" : "BLOCKED") : "DEMO_SESSION_ONLY",
+    authentication: productionAuthRequired ? "PRODUCTION_AUTH_REQUIRED" : productionAuthEnabled() ? (authConfigured ? "ACTIVE" : "BLOCKED") : "DEMO_SESSION_ONLY",
     database: runtimeConfig.ownedDatabaseReady ? "ACTIVE" : "DISABLED_DEMO_ONLY",
     marketData: "SYNTHETIC_ONLY",
     payments: "DISABLED",
@@ -195,6 +197,12 @@ function enforceMutationOrigin(request) {
   if (origin !== allowedOrigin) throw requestSecurityError("Request origin is not allowed.", "CSRF_ORIGIN_REJECTED", 403);
 }
 
+function enforceProductionRuntime(url) {
+  if (runtimeConfig.appEnv !== "production" || productionAuthEnabled()) return;
+  if (["/api/health", "/api/readiness"].includes(url.pathname)) return;
+  throw requestSecurityError("Production authentication must be configured before API access is enabled.", "PRODUCTION_AUTH_REQUIRED", 503);
+}
+
 function recordSecurityFailure(request, response, url, error) {
   const code = typeof error?.code === "string" ? error.code : error?.status >= 500 ? "REQUEST_FAILURE" : undefined;
   if (!code) return;
@@ -273,11 +281,12 @@ async function handleApi(request, response, url) {
     if (!applyRateLimit(request, response, url)) return;
     enforceMutationOrigin(request);
     if (request.method === "GET" && url.pathname === "/api/health") {
-      return sendJson(response, 200, { ok: true, demoMode: !productionAuthEnabled(), realMoneyEnabled: false, databaseProvider: runtimeConfig.databaseProvider, ownedDatabaseReady: runtimeConfig.ownedDatabaseReady, service: productionAuthEnabled() ? "peerarena-api" : "peerarena-demo" });
+      return sendJson(response, 200, { ok: true, demoMode: runtimeConfig.appEnv !== "production" && !productionAuthEnabled(), realMoneyEnabled: false, databaseProvider: runtimeConfig.databaseProvider, ownedDatabaseReady: runtimeConfig.ownedDatabaseReady, service: runtimeConfig.appEnv === "production" ? "peerarena-api" : "peerarena-demo" });
     }
     if (request.method === "GET" && url.pathname === "/api/readiness") {
       return sendJson(response, 200, readinessSnapshot());
     }
+    enforceProductionRuntime(url);
     if (request.method === "GET" && url.pathname === "/api/state") {
       if (productionAuthEnabled()) return sendJson(response, 503, { error: "Synthetic demo state is disabled in Supabase mode.", code: "DEMO_STATE_DISABLED", productionAuth: "SUPABASE" });
       return sendJson(response, 200, state);

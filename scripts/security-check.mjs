@@ -74,7 +74,8 @@ for (const requiredSourceMarker of [
   "Strict-Transport-Security",
   "X-Request-ID",
   "runtimeSecurity",
-  "ownedDatabaseReady"
+  "ownedDatabaseReady",
+  "PRODUCTION_AUTH_REQUIRED"
 ]) requireCondition(serverText.includes(requiredSourceMarker), `Server hardening marker is missing: ${requiredSourceMarker}`);
 for (const requiredRouteMarker of ["__peerarena_path", "Object.create(request)"]) {
   requireCondition(routerText.includes(requiredRouteMarker), `Vercel route consolidation marker is missing: ${requiredRouteMarker}`);
