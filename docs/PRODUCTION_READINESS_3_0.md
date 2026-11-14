@@ -23,7 +23,8 @@
 - [x] Hardened HTTP baseline, production Origin checks, request correlation IDs, bounded timeouts and repeatable security/dependency checks.
 - [x] Redacted, bounded runtime security-event telemetry surfaced through the protected admin security view.
 - [x] Owned PostgreSQL configuration gate and default-deny hardening migration with forced RLS, append-only evidence and database integrity triggers.
-- [x] Narrow owned-PostgreSQL `create_challenge` procedure contract with actor checks, idempotency, self-exclusion and audit evidence; funds/settlement procedures remain blocked.
+- [x] Narrow owned-PostgreSQL `create_challenge` procedure contract with actor checks, idempotency, self-exclusion and audit evidence.
+- [x] Synthetic-only owned-PostgreSQL `accept_challenge` procedure with account locks, balance checks, double-entry reservation, idempotency and audit evidence; settlement/payout procedures remain blocked.
 - [x] Owned PostgreSQL role bootstrap contract with no credentials in source control, no-superuser/no-bypass-RLS defaults and bounded session timeouts.
 - [x] Automated lifecycle, settlement, ledger, provider and activation-gate tests.
 
@@ -31,7 +32,7 @@
 
 - [ ] Protected API service connected to first-party authentication/private PostgreSQL with secure cookie/session handling and durable profiles.
 - [ ] First-party authentication, reviewed database procedures and a provisioned private PostgreSQL cluster connected; no hosted database or Supabase production path.
-- [ ] Transactional challenge creation and acceptance procedures that atomically write participants and ledger reservations.
+- [ ] Connect the reviewed challenge procedures to a provisioned private database and authenticated API command boundary.
 - [ ] Transactional settlement, void/refund and reconciliation procedures with immutable audit records.
 - [ ] Shared production rate limiting/WAF policy across API instances.
 - [ ] Email/password, Google OAuth, password recovery, email verification and MFA configured and exercised in an isolated Supabase project.

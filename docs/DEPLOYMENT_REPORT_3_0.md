@@ -14,7 +14,7 @@ The protected pilot also exposes `GET /api/readiness`, a secret-free capability 
 
 ## Database status
 
-The owner-operated PostgreSQL schema, hardening migration, role bootstrap and reviewed `create_challenge` procedure are present as source code. No production database has been provisioned or connected. RLS is forced, direct table access is denied, and authoritative finance procedures remain blocked.
+The owner-operated PostgreSQL schema, hardening migration, role bootstrap and reviewed `create_challenge`/synthetic-only `accept_challenge` procedures are present as source code. No production database has been provisioned or connected. RLS is forced, direct table access is denied, and settlement/payout/provider procedures remain blocked.
 
 ## Authentication status
 

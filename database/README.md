@@ -10,6 +10,7 @@ The repository still contains a disabled Supabase compatibility adapter from the
 - `database/bootstrap/0000_roles.sql` defines non-login, non-superuser role intent and restrictive session defaults without creating credentials.
 - `database/migrations/0001_owned_postgres_hardening.sql` is the self-hosted hardening layer.
 - `database/migrations/0002_owned_create_challenge_procedure.sql` is the first reviewed write procedure. It creates an eligible challenge draft idempotently and records its audit event; it cannot reserve funds, settle, pay out or call a provider.
+- `database/migrations/0003_owned_accept_challenge_procedure.sql` is the second reviewed write procedure. It accepts one opposing participant and atomically reserves a synthetic stake with account locks, double-entry ledger rows, idempotency and audit evidence; it cannot settle, pay out or call a provider.
 - The hardening migration revokes public privileges, enables and forces RLS, blocks direct default access, makes ledger/audit/provider evidence append-only, enforces ledger currency and double-entry balance, and creates a server-computed hash chain for audit events.
 - The API role must be a non-superuser and must not own the tables. It receives `EXECUTE` only on reviewed `SECURITY DEFINER` procedures; it receives no direct table grants.
 - Migration, runtime, read-only reporting, and encrypted-backup roles are separate. Credentials are provisioned outside the repository and rotated through the operator's secret process.
@@ -26,8 +27,9 @@ Run these steps from a controlled migration host, using a migration-only identit
 3. Apply `docs/DATABASE_SCHEMA.sql`.
 4. Apply `database/migrations/0001_owned_postgres_hardening.sql`.
 5. Apply `database/migrations/0002_owned_create_challenge_procedure.sql`; it fails closed if the procedure and runtime roles were not provisioned.
-6. Create only reviewed stored procedures for the API role. Keep direct table privileges revoked; grant only the specific procedure `EXECUTE` privilege.
-7. Run RLS, ledger-balance, append-only, audit-chain, backup-restore and concurrency tests before connecting any application worker.
-8. Set `DATABASE_PROVIDER=owned-postgres`, `DATABASE_SSL_MODE=verify-full`, and an exact `DATABASE_ALLOWED_HOSTS` entry. Keep `AUTH_MODE=demo` and all real-money flags disabled until first-party authentication, transactional procedures, legal review and independent security review are complete.
+6. Apply `database/migrations/0003_owned_accept_challenge_procedure.sql`; it fails closed if the procedure and runtime roles were not provisioned.
+7. Create only reviewed stored procedures for the API role. Keep direct table privileges revoked; grant only the specific procedure `EXECUTE` privilege.
+8. Run RLS, ledger-balance, append-only, audit-chain, backup-restore and concurrency tests before connecting any application worker.
+9. Set `DATABASE_PROVIDER=owned-postgres`, `DATABASE_SSL_MODE=verify-full`, and an exact `DATABASE_ALLOWED_HOSTS` entry. Keep `AUTH_MODE=demo` and all real-money flags disabled until first-party authentication, transactional procedures, legal review and independent security review are complete.
 
 The application configuration rejects every database provider other than `owned-postgres` or `disabled`. In production, the real-money gate also requires a configured private host allowlist and `verify-full` TLS. A database URL by itself cannot activate the product.

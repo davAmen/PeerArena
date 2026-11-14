@@ -60,6 +60,23 @@ test("owned create-challenge procedure is narrow, idempotent and not publicly ex
   assert.doesNotMatch(sql, /function\s+peerarena_api\.(settle|payout|payment)/i);
 });
 
+test("owned accept-challenge procedure reserves synthetic stake atomically", async () => {
+  const sql = await readFile(new URL("../database/migrations/0003_owned_accept_challenge_procedure.sql", import.meta.url), "utf8");
+  assert.match(sql, /create or replace function peerarena_api\.accept_challenge/);
+  assert.match(sql, /peerarena_private\.current_actor_id/);
+  assert.match(sql, /ACCEPT_CHALLENGE/);
+  assert.match(sql, /pg_advisory_xact_lock/);
+  assert.match(sql, /self-exclusion blocks challenge acceptance/i);
+  assert.match(sql, /is_demo = true/);
+  assert.match(sql, /ledger_transactions/);
+  assert.match(sql, /reserved_account_id/);
+  assert.match(sql, /FUNDS_CONFIRMED/);
+  assert.match(sql, /synthetic_only/);
+  assert.match(sql, /revoke all on function peerarena_api\.accept_challenge/);
+  assert.match(sql, /grant execute on function peerarena_api\.accept_challenge[\s\S]*peerarena_runtime/);
+  assert.doesNotMatch(sql, /create or replace function peerarena_api\.(settle|payout|payment)/i);
+});
+
 test("owned database role bootstrap creates no credentials and constrains sessions", async () => {
   const sql = await readFile(new URL("../database/bootstrap/0000_roles.sql", import.meta.url), "utf8");
   assert.match(sql, /no login/i);
