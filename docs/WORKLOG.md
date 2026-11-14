@@ -1,5 +1,12 @@
 # PeerArena engineering worklog
 
+## 2026-11-14 — Ghana operating country confirmed
+
+- Operator explicitly confirmed Ghana (GH), following the Paystack provider selection.
+- Updated the current payment status and activation handoff; historical entries retain their at-the-time findings.
+- This decision supplies the operating scope, not evidence of gaming/provider approval. Staging credentials, private database access and approval records remain outstanding.
+- Documentation-only change; checked whitespace and current handoff wording. No runtime, eligibility rules or financial activation flags changed.
+
 ## 2026-11-14 — Paystack selection and sandbox verification
 
 - Operator selected Paystack while requesting completion of remaining payment work.

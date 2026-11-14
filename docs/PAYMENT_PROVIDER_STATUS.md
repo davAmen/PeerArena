@@ -2,7 +2,7 @@
 
 Status after the sandbox adapter milestone: real-money collection, customer-fund custody and payouts remain disabled.
 
-The operator selected Paystack on 2026-11-14. See [the Paystack activation handoff](PAYSTACK_ACTIVATION.md) for completed verification controls, the read-only sandbox command and the outstanding implementation/access requirements. Runtime defaults remain mock until an isolated staging configuration is supplied.
+The operator selected Paystack and confirmed Ghana as the operating country on 2026-11-14. See [the Paystack activation handoff](PAYSTACK_ACTIVATION.md) for completed verification controls, the read-only sandbox command and the outstanding implementation/access requirements. Runtime defaults remain mock until an isolated staging configuration is supplied.
 
 The activation gate explicitly reports that production payment processing, reconciliation and payouts are not implemented. Setting every approval flag cannot make this release report ready for real-money use. Completing those implementations and reviewing their evidence is a separate engineering prerequisite.
 

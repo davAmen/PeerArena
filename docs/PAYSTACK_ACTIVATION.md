@@ -1,6 +1,6 @@
 # Paystack activation handoff
 
-Paystack was selected by the operator on 2026-11-14. Real-money activation is incomplete. The repository remains a protected synthetic pilot; selecting a provider does not establish an operating jurisdiction or provider approval.
+The operator confirmed Paystack as the payment provider and Ghana (GH) as the operating country on 2026-11-14. Real-money activation is incomplete. The repository remains a protected synthetic pilot; this operating-country decision does not establish gaming authorization or provider approval.
 
 ## Completed and tested
 
@@ -29,7 +29,7 @@ Then run:
 npm run payments:verify -- YOUR_TEST_REFERENCE 5000 GHS
 ```
 
-Supply the actual expected amount in minor units and currency from the original test attempt. The example currency is not an operating-country decision. Exit code 0 means matching test SUCCESS; 2 means matching but pending, failed or reversed; 1 means invalid configuration/input, provider error or mismatch. A successful check is not proof of durable reconciliation, eligibility, funding or production readiness.
+Supply the actual expected amount in minor units and currency from the original test attempt. The example uses GHS for the Ghana operating scope; verify it against the original attempt. Exit code 0 means matching test SUCCESS; 2 means matching but pending, failed or reversed; 1 means invalid configuration/input, provider error or mismatch. A successful check is not proof of durable reconciliation, eligibility, funding or production readiness.
 
 ## Remaining engineering and evidence
 
@@ -38,7 +38,7 @@ Supply the actual expected amount in minor units and currency from the original 
 | Exercise Paystack test-account verification | Test secret through secret manager plus an existing test reference and expected amount/currency. Neither is available in this runtime. |
 | Apply and exercise database migrations | Isolated private PostgreSQL URL, verified TLS configuration and migration/runtime roles. No URL or local PostgreSQL/Docker/Podman tooling is available here. |
 | Implement durable payment attempts, webhook inbox and reconciliation | Private database with transaction tests: exact ownership/reference/amount/currency, unique event and reference constraints, concurrent duplicate delivery, reordered events, uncertain transport outcomes, replay and reversal handling. Do not credit funds from a redirect or this operator command. |
-| Connect production identity and customer eligibility | Reviewed first-party identity mapping, age/KYC/jurisdiction and self-exclusion decisions. Operating country is still unconfirmed. |
+| Connect production identity and customer eligibility | Reviewed first-party identity mapping, age/KYC/jurisdiction and self-exclusion decisions for Ghana. Operating country is confirmed; eligibility rules and approval evidence still require review. |
 | Production collections, withdrawals and winner payouts | Reviewed authoritative ledger and reconciliation implementation, destination ownership and verification, provider approval covering the actual betting model and payout capability, safeguarding and operational authorization. Existing adapters and public routes do not implement these. |
 | Operational readiness | Shared rate limiting/WAF, central alerts and incident ownership, backup/restore and independent security review evidence. |
 
