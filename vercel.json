@@ -4,6 +4,10 @@
   "trailingSlash": false,
   "buildCommand": "npm run build:vercel",
   "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/api", "destination": "/api/index?__peerarena_path=/api" },
+    { "source": "/api/:path*", "destination": "/api/index?__peerarena_path=/api/:path*" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
