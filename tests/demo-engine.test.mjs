@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   acceptChallenge,
+  canViewChallenge,
   createChallenge,
   createInitialState,
   getPredictionChoices,
@@ -96,4 +97,16 @@ test("self-exclusion blocks new challenges", () => {
     prediction: "Over 2.5",
     stake: 10
   }, NOW), /self-excluded/);
+});
+
+test("private demo challenges are visible only to their creator or participants", () => {
+  const privateChallenge = {
+    visibility: "PRIVATE",
+    creatorId: "u_creator",
+    participants: [{ id: "u_creator" }, { id: "u_member" }]
+  };
+  assert.equal(canViewChallenge(privateChallenge, "u_creator"), true);
+  assert.equal(canViewChallenge(privateChallenge, "u_member"), true);
+  assert.equal(canViewChallenge(privateChallenge, "u_stranger"), false);
+  assert.equal(canViewChallenge({ ...privateChallenge, visibility: "PUBLIC" }, "u_stranger"), true);
 });

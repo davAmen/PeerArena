@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   acceptChallenge,
+  canViewChallenge,
   cancelChallenge,
   createChallenge,
   createInitialState,
@@ -522,6 +523,7 @@ async function handleApi(request, response, url) {
     const participantMatch = url.pathname.match(/^\/api\/challenges\/([^/]+)\/participants$/);
     if (request.method === "GET" && participantMatch) {
       const challenge = findChallenge(decodeURIComponent(participantMatch[1]));
+      if (!canViewChallenge(challenge, state.user.id)) return sendJson(response, 404, { error: "Challenge not found.", code: "CHALLENGE_NOT_FOUND" });
       return sendJson(response, 200, { challengeId: challenge.id, participants: challenge.participants ?? [] });
     }
 
@@ -534,11 +536,14 @@ async function handleApi(request, response, url) {
     const challengeMatch = url.pathname.match(/^\/api\/challenges\/([^/]+)$/);
     if (request.method === "GET" && challengeMatch) {
       const challenge = findChallenge(decodeURIComponent(challengeMatch[1]));
+      if (!canViewChallenge(challenge, state.user.id)) return sendJson(response, 404, { error: "Challenge not found.", code: "CHALLENGE_NOT_FOUND" });
       return sendJson(response, 200, { challenge });
     }
 
     const acceptMatch = url.pathname.match(/^\/api\/challenges\/([^/]+)\/accept$/);
     if (request.method === "POST" && acceptMatch) {
+      const challengeToAccept = findChallenge(decodeURIComponent(acceptMatch[1]));
+      if (!canViewChallenge(challengeToAccept, state.user.id)) return sendJson(response, 404, { error: "Challenge not found.", code: "CHALLENGE_NOT_FOUND" });
       const challenge = acceptChallenge(state, decodeURIComponent(acceptMatch[1]));
       return sendJson(response, 200, { challenge, state });
     }

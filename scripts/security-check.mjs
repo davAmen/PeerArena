@@ -78,6 +78,8 @@ for (const requiredSourceMarker of [
   "X-Request-ID",
   "runtimeSecurity",
   "recentSecurityAlerts",
+  "canViewChallenge",
+  "CHALLENGE_NOT_FOUND",
   "maxKeys",
   "TRUST_PROXY_HEADERS",
   "ownedDatabaseReady",

@@ -416,6 +416,13 @@ export function createChallenge(state, input, timestamp = Date.now()) {
   return challenge;
 }
 
+export function canViewChallenge(challenge, userId) {
+  if (!challenge || typeof userId !== "string" || userId.trim() === "") return false;
+  if (challenge.visibility !== "PRIVATE") return true;
+  if (challenge.creatorId === userId) return true;
+  return (challenge.participants ?? []).some((participant) => participant?.id === userId);
+}
+
 export function acceptChallenge(state, challengeId, timestamp = Date.now()) {
   ensure(state.demoMode && !state.realMoneyEnabled, "Real-money mode is disabled in this demonstration.");
   ensure(!state.user.responsible.selfExcluded, "This demo account is self-excluded.");

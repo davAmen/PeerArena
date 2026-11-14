@@ -21,6 +21,8 @@ test("Vercel API adapter delegates to the hardened Node request handler", async 
   assert.match(server, /REQUEST_BODY_TOO_LARGE/);
   assert.match(server, /INVALID_PATH/);
   assert.match(server, /recentSecurityAlerts/);
+  assert.match(server, /canViewChallenge/);
+  assert.match(server, /CHALLENGE_NOT_FOUND/);
   assert.match(router, /handleRequest\(routedRequest\(request\), response\)/);
   assert.match(JSON.parse(packageText).scripts.check, /node --check api\/index\.mjs/);
   assert.equal(vercel.outputDirectory, "dist");
