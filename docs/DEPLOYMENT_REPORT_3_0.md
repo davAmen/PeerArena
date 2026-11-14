@@ -8,9 +8,9 @@ The repository contains the existing PeerArena simulated-funds experience plus t
 
 The protected PeerArena demo was deployed to [peerarena.vercel.app](https://peerarena.vercel.app). Vercel authentication protection remains enabled, so anonymous visitors are not granted access. `dist` supplies the frontend and the rewrite-backed `api/index.mjs` exposes the synthetic `/api/*` contract through one Vercel Function; state is in-memory and resets across function instances.
 
-Latest verified production deployment: `dpl_CUbWUB3krNi2NjaNNFjaWUGz9h7Q`, status `READY`, target `production`, with `vercel_authentication` protection and one `api/index` function. Inspector: [Vercel deployment](https://vercel.com/amenukudavid20-9818s-projects/peerarena/CUbWUB3krNi2NjaNNFjaWUGz9h7Q).
+Latest verified production deployment: `dpl_54HvhCeMxnWctzRDBQSy5TTRyenx`, status `READY`, target `production`, with `vercel_authentication` protection and one `api/index` function. Inspector: [Vercel deployment](https://vercel.com/amenukudavid20-9818s-projects/peerarena/54HvhCeMxnWctzRDBQSy5TTRyenx).
 
-The protected pilot also exposes `GET /api/readiness`, a secret-free capability report for authorized visitors and operators. The live response confirms the frontend/API are active, while database/auth/payment/real-money capabilities remain gated. The latest live smoke test also confirmed `/api/events/live` through the rewrite-backed single-function router. The protected `/api/admin/security` surface reports bounded severity counts and high/critical alert capability. In addition, a misconfigured production runtime (`APP_ENV=production` with demo authentication) now fails closed with `503 PRODUCTION_AUTH_REQUIRED` instead of exposing synthetic API routes. See `docs/STRANGER_QUICKSTART.md` for the shortest walkthrough.
+The protected pilot also exposes `GET /api/readiness`, a secret-free capability report for authorized visitors and operators. The live response confirms the frontend/API are active, while database/auth/payment/real-money capabilities remain gated. The latest live smoke test also confirmed `/api/events/live` through the rewrite-backed single-function router. The protected `/api/admin/security` surface reports bounded severity counts and high/critical alert capability. In addition, a misconfigured production runtime (`APP_ENV=production` with demo authentication) now fails closed with `503 PRODUCTION_AUTH_REQUIRED` instead of exposing synthetic API routes, and each in-process rate limiter is bounded to 10,000 distinct keys with safe overflow throttling. See `docs/STRANGER_QUICKSTART.md` for the shortest walkthrough.
 
 ## Database status
 
@@ -32,12 +32,12 @@ The current feed is synthetic. A licensed data-provider contract, sandbox key, r
 
 Verified locally on 2026-11-14:
 
-- `npm run check`: passed; 50 tests passed, environment gate validation passed, and JavaScript syntax checks passed.
+- `npm run check`: passed; 51 tests passed, environment gate validation passed, and JavaScript syntax checks passed.
 - `npm run build`: passed; `dist/index.html`, `dist/app.js` and `dist/styles.css` were found.
 - `npm run security:check`: passed; security headers/CSP, secret-file hygiene, default-deny real-money configuration and HTTP hardening markers verified.
 - `npm audit --omit=dev --audit-level=moderate`: passed; 0 vulnerabilities reported.
 - Provider adapter contract tests: passed for SeevPlus/Paystack sandbox request shape, idempotency, server-side authentication, HMAC signatures, replay-window rejection and disabled payout capability.
-- Production Vercel smoke test: passed for `/api/health`, `/api/readiness`, and `/api/events/live` on `dpl_CUbWUB3krNi2NjaNNFjaWUGz9h7Q`; Vercel reported one `api/index` function, protection remained enabled, the production demo-auth guard was deployed without changing the protected pilot, and the response confirmed synthetic-only market data, disabled payment/payout paths and a blocked real-money gate.
+- Production Vercel smoke test: passed for `/api/health`, `/api/readiness`, and `/api/events/live` on `dpl_54HvhCeMxnWctzRDBQSy5TTRyenx`; Vercel reported one `api/index` function, protection remained enabled, the bounded rate limiter and production demo-auth guard were deployed without changing the protected pilot, and the response confirmed synthetic-only market data, disabled payment/payout paths and a blocked real-money gate.
 - Isolated production-handler security test: an untrusted mutation `Origin` returned `403 CSRF_ORIGIN_REJECTED`, emitted a high-severity `securityAlert`, and changed no state.
 - Isolated production-configuration test: `APP_ENV=production` with `AUTH_MODE=demo` returned `503 PRODUCTION_AUTH_REQUIRED` for a non-health API route; readiness returned `PRODUCTION_CONFIGURATION_BLOCKED` with `api=BLOCKED`.
 - Temporary localhost API smoke test: passed for health, disabled real-money state, sports, live events, public challenges and the `429` rate-limit boundary.
