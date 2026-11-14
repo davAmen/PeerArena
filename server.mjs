@@ -62,6 +62,7 @@ function securityHeaders(extra = {}) {
     "Cross-Origin-Opener-Policy": "same-origin",
     "Cross-Origin-Resource-Policy": "same-origin",
     "X-Permitted-Cross-Domain-Policies": "none",
+    "X-Robots-Tag": "noindex, nofollow, noarchive",
     "Cache-Control": "no-store",
     "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'; frame-ancestors 'none'",
     ...extra

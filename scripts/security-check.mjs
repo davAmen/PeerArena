@@ -50,6 +50,7 @@ for (const header of [
   "Permissions-Policy",
   "Cross-Origin-Opener-Policy",
   "Cross-Origin-Resource-Policy",
+  "X-Robots-Tag",
   "Strict-Transport-Security",
   "Content-Security-Policy"
 ]) requireCondition(vercelHeaders.has(header), `Vercel security header is missing: ${header}`);
@@ -77,6 +78,7 @@ for (const requiredSourceMarker of [
   "process.env.VERCEL === \"1\"",
   "Strict-Transport-Security",
   "X-Request-ID",
+  "X-Robots-Tag",
   "runtimeSecurity",
   "recentSecurityAlerts",
   "canViewChallenge",

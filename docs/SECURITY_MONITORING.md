@@ -3,7 +3,7 @@
 ## Controls committed in the repository
 
 - The Node service emits a fresh `X-Request-ID` for every response.
-- Production responses add HSTS; all environments use CSP, `object-src 'none'`, `form-action 'self'`, `frame-ancestors 'none'`, no-sniff, restrictive referrer and permissions policies, and same-origin isolation headers.
+- Production responses add HSTS; all environments use CSP, `object-src 'none'`, `form-action 'self'`, `frame-ancestors 'none'`, no-sniff, restrictive referrer and permissions policies, same-origin isolation headers, and `X-Robots-Tag: noindex, nofollow, noarchive` for the protected synthetic pilot.
 - Production and Vercel-hosted browser mutations reject an untrusted `Origin` and fail closed when `NEXT_PUBLIC_APP_URL` is missing or invalid.
 - HTTP header size, request timeout, header timeout, keep-alive timeout and JSON body size are bounded.
 - 5xx responses use a generic message unless the error code is an explicitly safe configuration/boundary code; request IDs remain available for investigation.
