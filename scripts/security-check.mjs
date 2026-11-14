@@ -70,6 +70,7 @@ for (const requiredSourceMarker of [
   "headersTimeout",
   "Request body is too large",
   "enforceMutationOrigin",
+  "runtimeConfig.appEnv === \"production\"",
   "Strict-Transport-Security",
   "X-Request-ID",
   "runtimeSecurity",

@@ -175,7 +175,8 @@ function requestSecurityError(message, code, status) {
 }
 
 function enforceMutationOrigin(request) {
-  if (!productionAuthEnabled() || !["POST", "PATCH", "PUT", "DELETE"].includes(request.method)) return;
+  const originChecksRequired = runtimeConfig.appEnv === "production" || productionAuthEnabled();
+  if (!originChecksRequired || !["POST", "PATCH", "PUT", "DELETE"].includes(request.method)) return;
   const origin = request.headers.origin;
   if (origin === undefined) return;
   if (typeof origin !== "string" || origin.length > 2_048) {
