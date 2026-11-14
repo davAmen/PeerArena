@@ -8,7 +8,7 @@ The repository contains the existing PeerArena simulated-funds experience plus t
 
 The protected PeerArena demo was deployed to [peerarena.vercel.app](https://peerarena.vercel.app). Vercel authentication protection remains enabled, so anonymous visitors are not granted access. `dist` supplies the frontend and `api/[...path].mjs` exposes the synthetic `/api/*` contract through a Vercel Function; state is in-memory and resets across function instances.
 
-Latest verified production deployment: `dpl_2pcnoSB8pWvdboX3Qd7hLaH3TZek`, status `READY`, target `production`, with `vercel_authentication` protection. Inspector: [Vercel deployment](https://vercel.com/amenukudavid20-9818s-projects/peerarena/2pcnoSB8pWvdboX3Qd7hLaH3TZek).
+Latest verified production deployment: `dpl_AH7Y8XNFLF3mnKBn2UnN1hVdUJQX`, status `READY`, target `production`, with `vercel_authentication` protection. Inspector: [Vercel deployment](https://vercel.com/amenukudavid20-9818s-projects/peerarena/AH7Y8XNFLF3mnKBn2UnN1hVdUJQX).
 
 The protected pilot also exposes `GET /api/readiness`, a secret-free capability report for authorized visitors and operators. The live response confirms the frontend/API are active, while database/auth/payment/real-money capabilities remain gated. See `docs/STRANGER_QUICKSTART.md` for the shortest walkthrough.
 
@@ -32,7 +32,7 @@ The current feed is synthetic. A licensed data-provider contract, sandbox key, r
 
 Verified locally on 2026-11-14:
 
-- `npm run check`: passed; 45 tests passed, environment gate validation passed, and JavaScript syntax checks passed.
+- `npm run check`: passed; 46 tests passed, environment gate validation passed, and JavaScript syntax checks passed.
 - `npm run build`: passed; `dist/index.html`, `dist/app.js` and `dist/styles.css` were found.
 - `npm run security:check`: passed; security headers/CSP, secret-file hygiene, default-deny real-money configuration and HTTP hardening markers verified.
 - `npm audit --omit=dev --audit-level=moderate`: passed; 0 vulnerabilities reported.
