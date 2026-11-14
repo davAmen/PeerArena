@@ -182,7 +182,7 @@ function requestSecurityError(message, code, status) {
 }
 
 function enforceMutationOrigin(request) {
-  const originChecksRequired = runtimeConfig.appEnv === "production" || productionAuthEnabled();
+  const originChecksRequired = runtimeConfig.appEnv === "production" || productionAuthEnabled() || process.env.VERCEL === "1";
   if (!originChecksRequired || !["POST", "PATCH", "PUT", "DELETE"].includes(request.method)) return;
   const origin = request.headers.origin;
   if (origin === undefined) return;

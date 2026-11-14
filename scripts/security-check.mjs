@@ -74,6 +74,7 @@ for (const requiredSourceMarker of [
   "INVALID_PATH",
   "enforceMutationOrigin",
   "runtimeConfig.appEnv === \"production\"",
+  "process.env.VERCEL === \"1\"",
   "Strict-Transport-Security",
   "X-Request-ID",
   "runtimeSecurity",
