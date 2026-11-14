@@ -8,13 +8,13 @@ The repository contains the existing PeerArena simulated-funds experience plus t
 
 The protected PeerArena demo was deployed to [peerarena.vercel.app](https://peerarena.vercel.app). Vercel authentication protection remains enabled, so anonymous visitors are not granted access. `dist` supplies the frontend and `api/[...path].mjs` exposes the synthetic `/api/*` contract through a Vercel Function; state is in-memory and resets across function instances.
 
-Latest verified production deployment: `dpl_MyTA7CdxwRMcY4UDJNtVcpko98Y3`, status `READY`, target `production`, with `vercel_authentication` protection. Inspector: [Vercel deployment](https://vercel.com/amenukudavid20-9818s-projects/peerarena/MyTA7CdxwRMcY4UDJNtVcpko98Y3).
+Latest verified production deployment: `dpl_9FrbaM4K9UqsUhdTGhJvrrHQuFSk`, status `READY`, target `production`, with `vercel_authentication` protection. Inspector: [Vercel deployment](https://vercel.com/amenukudavid20-9818s-projects/peerarena/9FrbaM4K9UqsUhdTGhJvrrHQuFSk).
 
 The protected pilot also exposes `GET /api/readiness`, a secret-free capability report for authorized visitors and operators. The live response confirms the frontend/API are active, while database/auth/payment/real-money capabilities remain gated. See `docs/STRANGER_QUICKSTART.md` for the shortest walkthrough.
 
 ## Database status
 
-The owner-operated PostgreSQL schema, hardening migration, role bootstrap and reviewed `create_challenge`, synthetic-only `accept_challenge`, and trusted-worker-only `verify_and_settle_synthetic_challenge` procedures are present as source code. No production database has been provisioned or connected. RLS is forced, direct table access is denied, and provider payout/real-money procedures remain blocked.
+The owner-operated PostgreSQL schema, hardening migration, role bootstrap and reviewed `create_challenge`, synthetic-only `accept_challenge`, and trusted-worker-only `verify_and_settle_synthetic_challenge` procedures are present as source code. The fail-closed `src/backend/owned-postgres.mjs` client boundary now wraps those procedures with parameterized calls, transaction-local context, verified-TLS pool settings and bounded timeouts; it does not perform direct table writes. No production database has been provisioned or connected. RLS is forced, direct table access is denied, and provider payout/real-money procedures remain blocked.
 
 ## Authentication status
 
@@ -32,12 +32,12 @@ The current feed is synthetic. A licensed data-provider contract, sandbox key, r
 
 Verified locally on 2026-11-14:
 
-- `npm run check`: passed; 47 tests passed, environment gate validation passed, and JavaScript syntax checks passed.
+- `npm run check`: passed; 50 tests passed, environment gate validation passed, and JavaScript syntax checks passed.
 - `npm run build`: passed; `dist/index.html`, `dist/app.js` and `dist/styles.css` were found.
 - `npm run security:check`: passed; security headers/CSP, secret-file hygiene, default-deny real-money configuration and HTTP hardening markers verified.
 - `npm audit --omit=dev --audit-level=moderate`: passed; 0 vulnerabilities reported.
 - Provider adapter contract tests: passed for SeevPlus/Paystack sandbox request shape, idempotency, server-side authentication, HMAC signatures, replay-window rejection and disabled payout capability.
-- Production Vercel smoke test: passed for `/api/readiness`; response confirmed synthetic-only market data, disabled payment/payout paths and a blocked real-money gate.
+- Production Vercel smoke test: passed for `/api/readiness` on `dpl_9FrbaM4K9UqsUhdTGhJvrrHQuFSk`; response confirmed synthetic-only market data, disabled payment/payout paths and a blocked real-money gate.
 - Temporary localhost API smoke test: passed for health, disabled real-money state, sports, live events, public challenges and the `429` rate-limit boundary.
 - `git diff --check`: passed.
 - PostgreSQL migration execution: not run; no connected private PostgreSQL instance was available.

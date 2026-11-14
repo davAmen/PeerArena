@@ -24,6 +24,7 @@ This is the durable project record for security, persistence, verification and r
 | 2026-11-14 | `87bbb41` | Added verified SeevPlus and Paystack sandbox adapters and published the safe release. | 45 tests, build, security check, dependency audit and syntax checks pass; exact-unit requests, idempotency and raw-body HMAC verification are covered; deployment `dpl_2pcnoSB8pWvdboX3Qd7hLaH3TZek` is READY with `vercel_authentication`; live `/api/readiness` confirms payments/payouts disabled and real money blocked. |
 | 2026-11-14 | `9ce02c0` | Added owned-PostgreSQL `accept_challenge` procedure boundary and published the safe release. | Synthetic-only atomic participant acceptance and ledger reservation with account locks, balance checks, idempotency and audit evidence; 46 tests pass; deployment `dpl_AH7Y8XNFLF3mnKBn2UnN1hVdUJQX` is READY with `vercel_authentication`; live `/api/readiness` confirms settlement/payout/provider paths remain blocked. |
 | 2026-11-14 | `23b60f9` | Added trusted-worker-only synthetic settlement boundary and published the safe release. | New worker role and migration verify a closed/result-hashed synthetic market, refund void/no-winner pools or distribute winners through one balanced demo ledger transaction; 47 tests pass; deployment `dpl_MyTA7CdxwRMcY4UDJNtVcpko98Y3` is READY with `vercel_authentication`; live `/api/readiness` confirms provider payouts and real money remain blocked. |
+| 2026-11-14 | `70c7b1a` | Added the fail-closed owned PostgreSQL procedure client and published the safe release. | `pg` pool uses verified-TLS production settings, bounded timeouts, transaction-local actor/request context and parameterized calls to the three reviewed procedures; direct table writes are impossible through the client; 50 tests, build, security check and audit pass; deployment `dpl_9FrbaM4K9UqsUhdTGhJvrrHQuFSk` is READY with `vercel_authentication`; live `/api/readiness` confirms the protected synthetic pilot remains active and real money remains blocked. |
 
 ## Current database sovereignty milestone
 
@@ -37,7 +38,7 @@ The earlier Supabase adapter remains compatibility code from the prototype and i
 
 ## 2026-11-14 launch-readiness audit
 
-Active and verified: protected Vercel frontend, same-origin synthetic API, health/state smoke tests, security headers, rate limiting, redacted telemetry, demo challenge lifecycle, synthetic ledger/settlement rules, owned-PostgreSQL migration artifacts, and automated checks.
+Active and verified: protected Vercel frontend, same-origin synthetic API, health/state smoke tests, security headers, rate limiting, redacted telemetry, demo challenge lifecycle, synthetic ledger/settlement rules, owned-PostgreSQL migration artifacts, fail-closed parameterized procedure client boundary, and automated checks.
 
 Still gated: private PostgreSQL provisioning, first-party authentication, HTTP wiring for the reviewed procedures, durable profile/participant persistence, settlement/refund/reconciliation procedures, shared WAF/rate limiting, centralized alerting, licensed event data, payment/payout integrations, KYC/age/jurisdiction controls, independent security review and all real-money operation. These are external systems or approvals, not safe configuration toggles. The Vercel project remains protected and the demo gate remains blocked.
 
