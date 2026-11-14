@@ -22,10 +22,11 @@ This is the durable project record for security, persistence, verification and r
 | 2026-11-13 | `c49331d` | Connected the protected synthetic API to Vercel through `api/[...path].mjs`. | Production deployment `dpl_5rX3aQwc6rTgdzFRo4uGvCxpGig6` is READY; `/api/health` and `/api/state` smoke tests pass; real money and database remain disabled. |
 | 2026-11-14 | `c66b699` | Added a secret-free readiness endpoint and stranger-friendly protected-pilot walkthrough. | Deployment `dpl_E4wATUAUk5ZyAbHaVqV6J7S8qdNb` is READY; `/api/readiness` confirms active frontend/API and gated database/auth/payment capabilities. |
 | 2026-11-14 | `87bbb41` | Added verified SeevPlus and Paystack sandbox adapters and published the safe release. | 45 tests, build, security check, dependency audit and syntax checks pass; exact-unit requests, idempotency and raw-body HMAC verification are covered; deployment `dpl_2pcnoSB8pWvdboX3Qd7hLaH3TZek` is READY with `vercel_authentication`; live `/api/readiness` confirms payments/payouts disabled and real money blocked. |
+| 2026-11-14 | `9ce02c0` | Added owned-PostgreSQL `accept_challenge` procedure boundary. | Synthetic-only atomic participant acceptance and ledger reservation with account locks, balance checks, idempotency and audit evidence; settlement, payout and provider calls remain absent; 46 tests pass. |
 
 ## Current database sovereignty milestone
 
-Committed as `f13e6c7`; procedure boundary added in `78be3a2`; role bootstrap added in `d21008b`; Vercel API adapter added in `c49331d`; readiness surface added in `c66b699`.
+Committed as `f13e6c7`; procedure boundaries added in `78be3a2` and `9ce02c0`; role bootstrap added in `d21008b`; Vercel API adapter added in `c49331d`; readiness surface added in `c66b699`.
 
 The production database target is now explicitly self-hosted PostgreSQL operated on a private, owner-controlled network. The application accepts only `owned-postgres` or `disabled` as database modes. Production readiness requires an exact host allowlist and `verify-full` TLS. The demo remains in-memory with synthetic, non-redeemable balances.
 
@@ -37,7 +38,7 @@ The earlier Supabase adapter remains compatibility code from the prototype and i
 
 Active and verified: protected Vercel frontend, same-origin synthetic API, health/state smoke tests, security headers, rate limiting, redacted telemetry, demo challenge lifecycle, synthetic ledger/settlement rules, owned-PostgreSQL migration artifacts, and automated checks.
 
-Still gated: private PostgreSQL provisioning, first-party authentication, durable profile/participant persistence, atomic reservation/acceptance, settlement/refund/reconciliation procedures, shared WAF/rate limiting, centralized alerting, licensed event data, payment/payout integrations, KYC/age/jurisdiction controls, independent security review and all real-money operation. These are external systems or approvals, not safe configuration toggles. The Vercel project remains protected and the demo gate remains blocked.
+Still gated: private PostgreSQL provisioning, first-party authentication, HTTP wiring for the reviewed procedures, durable profile/participant persistence, settlement/refund/reconciliation procedures, shared WAF/rate limiting, centralized alerting, licensed event data, payment/payout integrations, KYC/age/jurisdiction controls, independent security review and all real-money operation. These are external systems or approvals, not safe configuration toggles. The Vercel project remains protected and the demo gate remains blocked.
 
 ## Non-negotiable safety boundaries
 
