@@ -1,5 +1,14 @@
 # PeerArena engineering worklog
 
+## 2026-11-14 — Paystack selection and sandbox verification
+
+- Operator selected Paystack while requesting completion of remaining payment work.
+- Blocked live/malformed credentials from the sandbox adapter. Verification now requires a test-domain response, exact reference, safe amount, valid currency and recognized status; expected-transaction matching checks amount/currency and returns no raw provider/customer data.
+- Added payments:verify, a read-only staging command for existing Paystack test transactions. It never credits funds or changes accounting state.
+- Validation: 91 tests passed; security baseline, environment/syntax checks and build passed; production dependency audit reported zero vulnerabilities.
+- Infrastructure check found no local PostgreSQL/Docker/Podman tooling, no DATABASE_URL and no Paystack test key in this process. No database instance was started, no provider transaction was executed, and no deployment occurred.
+- Added PAYSTACK_ACTIVATION.md with exact completion evidence and remaining engineering/access dependencies. Operating country and approval/infrastructure locations remain unconfirmed. Real-money work is not complete.
+
 ## 2026-11-14 — Provider deadlines and accurate activation blockers
 
 - Added bounded HTTP deadlines to the profile, challenge, catalogue and admin Supabase repositories, including response-body consumption and safe 503 mapping.

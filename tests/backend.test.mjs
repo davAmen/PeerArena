@@ -177,7 +177,7 @@ test("Paystack sandbox adapter uses server-side secret authentication and raw we
     webhookSecret: secret,
     fetchImpl: async (url, init) => {
       calls.push({ url, init, body: init.body ? JSON.parse(init.body) : undefined });
-      return new Response(JSON.stringify({ status: true, data: { reference: "PA-1", status: "success", amount: 5000, currency: "GHS", authorization_url: "https://checkout.paystack.test/PA-1", access_code: "test-access" } }), { status: 200 });
+      return new Response(JSON.stringify({ status: true, data: { reference: "PA-1", domain: "test", status: "success", amount: 5000, currency: "GHS", authorization_url: "https://checkout.paystack.test/PA-1", access_code: "test-access" } }), { status: 200 });
     }
   });
 

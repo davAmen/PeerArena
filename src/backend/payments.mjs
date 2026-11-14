@@ -370,6 +370,9 @@ export class SeevPlusProvider extends SandboxProvider {
 export class PaystackProvider extends SandboxProvider {
   constructor(options = {}) {
     super({ ...options, name: "paystack" });
+    // Paystack test and live credentials share an API host. A mode flag alone
+    // must never allow a live credential to initiate a real collection.
+    this.enabled = this.enabled && /^sk_test_[A-Za-z0-9]+$/.test(this.apiKey);
     this.baseUrl = String(options.baseUrl ?? "https://api.paystack.co").replace(/\/+$/, "");
   }
 
@@ -419,6 +422,14 @@ export class PaystackProvider extends SandboxProvider {
       timeoutMs: this.timeoutMs
     });
     const data = providerPayload(payload.data);
+    if (payload.status !== true || data.domain !== "test" || data.reference !== reference
+      || !Number.isSafeInteger(data.amount) || data.amount <= 0
+      || typeof data.currency !== "string" || !/^[A-Z]{3}$/.test(data.currency)
+      || !["success", "failed", "abandoned", "ongoing", "pending", "processing", "queued", "reversed"].includes(data.status)) {
+      throw new PaymentProviderError("Paystack verification returned an invalid or mismatched test transaction.", {
+        code: "PAYMENT_VERIFICATION_INVALID", status: 502
+      });
+    }
     return Object.freeze({
       provider: this.name,
       reference: data.reference ?? reference,
@@ -428,6 +439,24 @@ export class PaystackProvider extends SandboxProvider {
       providerStatus: data.status ?? null,
       sandbox: true,
       raw: payload
+    });
+  }
+
+  async verifyExpectedPayment({ reference, amountMinor, currency } = {}) {
+    const expectedAmount = minorAmount(amountMinor);
+    const expectedCurrency = currencyCode(requiredString(currency, "Expected currency", { maxLength: 3 }));
+    const result = await this.verifyPayment(reference);
+    if (result.amountMinor !== String(expectedAmount) || result.currency !== expectedCurrency) {
+      throw new PaymentProviderError("Verified payment does not match the expected amount or currency.", {
+        code: "PAYMENT_VERIFICATION_MISMATCH", status: 409
+      });
+    }
+    // This observation is not ledger credit. Durable idempotent reconciliation
+    // and ownership checks remain mandatory before any future fulfillment.
+    return Object.freeze({
+      provider: "paystack", reference: result.reference, status: result.status,
+      amountMinor: result.amountMinor, currency: result.currency, sandbox: true,
+      matched: true, fundsCredited: false
     });
   }
 

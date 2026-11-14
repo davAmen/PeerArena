@@ -58,7 +58,7 @@ for (const name of ["paystack", "seevplus"]) {
     test(`${name} payment verification aborts stalled ${stage}`, { timeout: 2_000 }, async () => {
       let aborted = false;
       const provider = createPaymentProvider(name, {
-        mode: "sandbox", apiKey: "sandbox-key", timeoutMs: 20,
+        mode: "sandbox", apiKey: name === "paystack" ? "sk_test_fixture" : "sandbox-key", timeoutMs: 20,
         fetchImpl: stalledFetch(stage, () => { aborted = true; })
       });
       await assert.rejects(() => provider.verifyPayment("reference-1"), {
