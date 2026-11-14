@@ -13,6 +13,9 @@ begin
   if not exists (select 1 from pg_roles where rolname = 'peerarena_runtime') then
     create role peerarena_runtime no login noinherit nosuperuser nobypassrls;
   end if;
+  if not exists (select 1 from pg_roles where rolname = 'peerarena_settlement_worker') then
+    create role peerarena_settlement_worker no login noinherit nosuperuser nobypassrls;
+  end if;
   if not exists (select 1 from pg_roles where rolname = 'peerarena_reporter') then
     create role peerarena_reporter no login noinherit nosuperuser nobypassrls;
   end if;
@@ -24,12 +27,14 @@ $$;
 
 alter role peerarena_procedure_owner no login noinherit nosuperuser nobypassrls connection limit 5;
 alter role peerarena_runtime no login noinherit nosuperuser nobypassrls connection limit 100;
+alter role peerarena_settlement_worker no login noinherit nosuperuser nobypassrls connection limit 10;
 alter role peerarena_reporter no login noinherit nosuperuser nobypassrls connection limit 5;
 alter role peerarena_backup no login noinherit nosuperuser nobypassrls connection limit 2;
 
 -- Avoid accidental object lookup through a caller-controlled search_path.
 alter role peerarena_procedure_owner set search_path = pg_catalog;
 alter role peerarena_runtime set search_path = pg_catalog;
+alter role peerarena_settlement_worker set search_path = pg_catalog;
 alter role peerarena_reporter set search_path = pg_catalog;
 alter role peerarena_backup set search_path = pg_catalog;
 
@@ -39,6 +44,9 @@ alter role peerarena_backup set search_path = pg_catalog;
 alter role peerarena_runtime set statement_timeout = '15s';
 alter role peerarena_runtime set lock_timeout = '5s';
 alter role peerarena_runtime set idle_in_transaction_session_timeout = '30s';
+alter role peerarena_settlement_worker set statement_timeout = '30s';
+alter role peerarena_settlement_worker set lock_timeout = '5s';
+alter role peerarena_settlement_worker set idle_in_transaction_session_timeout = '30s';
 alter role peerarena_reporter set statement_timeout = '30s';
 alter role peerarena_reporter set idle_in_transaction_session_timeout = '30s';
 alter role peerarena_backup set statement_timeout = '10min';

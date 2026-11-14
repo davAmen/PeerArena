@@ -14,7 +14,7 @@ The protected pilot also exposes `GET /api/readiness`, a secret-free capability 
 
 ## Database status
 
-The owner-operated PostgreSQL schema, hardening migration, role bootstrap and reviewed `create_challenge`/synthetic-only `accept_challenge` procedures are present as source code. No production database has been provisioned or connected. RLS is forced, direct table access is denied, and settlement/payout/provider procedures remain blocked.
+The owner-operated PostgreSQL schema, hardening migration, role bootstrap and reviewed `create_challenge`, synthetic-only `accept_challenge`, and trusted-worker-only `verify_and_settle_synthetic_challenge` procedures are present as source code. No production database has been provisioned or connected. RLS is forced, direct table access is denied, and provider payout/real-money procedures remain blocked.
 
 ## Authentication status
 
@@ -32,7 +32,7 @@ The current feed is synthetic. A licensed data-provider contract, sandbox key, r
 
 Verified locally on 2026-11-14:
 
-- `npm run check`: passed; 46 tests passed, environment gate validation passed, and JavaScript syntax checks passed.
+- `npm run check`: passed; 47 tests passed, environment gate validation passed, and JavaScript syntax checks passed.
 - `npm run build`: passed; `dist/index.html`, `dist/app.js` and `dist/styles.css` were found.
 - `npm run security:check`: passed; security headers/CSP, secret-file hygiene, default-deny real-money configuration and HTTP hardening markers verified.
 - `npm audit --omit=dev --audit-level=moderate`: passed; 0 vulnerabilities reported.

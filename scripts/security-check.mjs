@@ -14,7 +14,7 @@ async function readProjectFile(relativePath) {
   return readFile(path.join(projectRoot, relativePath), "utf8");
 }
 
-const [vercelText, gitignore, packageText, serverText, configText, paymentsText, securityEventsText, databaseText, databaseMigrationText, databaseProcedureMigrationText, databaseAcceptanceMigrationText, databaseBootstrapText, worklogText] = await Promise.all([
+const [vercelText, gitignore, packageText, serverText, configText, paymentsText, securityEventsText, databaseText, databaseMigrationText, databaseProcedureMigrationText, databaseAcceptanceMigrationText, databaseSettlementMigrationText, databaseBootstrapText, worklogText] = await Promise.all([
   readProjectFile("vercel.json"),
   readProjectFile(".gitignore"),
   readProjectFile("package.json"),
@@ -26,6 +26,7 @@ const [vercelText, gitignore, packageText, serverText, configText, paymentsText,
   readProjectFile("database/migrations/0001_owned_postgres_hardening.sql"),
   readProjectFile("database/migrations/0002_owned_create_challenge_procedure.sql"),
   readProjectFile("database/migrations/0003_owned_accept_challenge_procedure.sql"),
+  readProjectFile("database/migrations/0004_owned_verify_and_settle_synthetic_challenge.sql"),
   readProjectFile("database/bootstrap/0000_roles.sql"),
   readProjectFile("docs/WORKLOG.md")
 ]);
@@ -88,6 +89,9 @@ for (const requiredProcedureMarker of ["create or replace function peerarena_api
 }
 for (const requiredAcceptanceMarker of ["create or replace function peerarena_api.accept_challenge", "is_demo = true", "ACCEPT_CHALLENGE", "pg_advisory_xact_lock", "FUNDS_CONFIRMED", "revoke all on function peerarena_api.accept_challenge"]) {
   requireCondition(databaseAcceptanceMigrationText.includes(requiredAcceptanceMarker), `Database acceptance marker is missing: ${requiredAcceptanceMarker}`);
+}
+for (const requiredSettlementMarker of ["create or replace function peerarena_api.verify_and_settle_synthetic_challenge", "peerarena_settlement_worker", "SYNTHETIC_REVIEWED", "result_payload_hash", "is_demo = true", "grant execute on function peerarena_api.verify_and_settle_synthetic_challenge"]) {
+  requireCondition(databaseSettlementMigrationText.includes(requiredSettlementMarker), `Database settlement marker is missing: ${requiredSettlementMarker}`);
 }
 for (const requiredRoleMarker of ["no login", "nobypassrls", "statement_timeout", "idle_in_transaction_session_timeout"]) {
   requireCondition(databaseBootstrapText.includes(requiredRoleMarker), `Database role marker is missing: ${requiredRoleMarker}`);

@@ -77,6 +77,24 @@ test("owned accept-challenge procedure reserves synthetic stake atomically", asy
   assert.doesNotMatch(sql, /create or replace function peerarena_api\.(settle|payout|payment)/i);
 });
 
+test("owned synthetic settlement procedure is worker-only and balances void/winner paths", async () => {
+  const sql = await readFile(new URL("../database/migrations/0004_owned_verify_and_settle_synthetic_challenge.sql", import.meta.url), "utf8");
+  assert.match(sql, /create or replace function peerarena_api\.verify_and_settle_synthetic_challenge/);
+  assert.match(sql, /peerarena_settlement_worker/);
+  assert.match(sql, /pg_has_role\(session_user/);
+  assert.match(sql, /SYNTHETIC_REVIEWED/);
+  assert.match(sql, /result_payload_hash/);
+  assert.match(sql, /market_status not in \('CLOSED', 'SUSPENDED'\)/);
+  assert.match(sql, /event_status <> 'COMPLETED'/);
+  assert.match(sql, /NO_WINNER/);
+  assert.match(sql, /'REFUND'/);
+  assert.match(sql, /'PAYOUT'/);
+  assert.match(sql, /is_demo = true/);
+  assert.match(sql, /settlement_id/);
+  assert.match(sql, /grant execute on function peerarena_api\.verify_and_settle_synthetic_challenge[\s\S]*peerarena_settlement_worker/);
+  assert.doesNotMatch(sql, /create or replace function peerarena_api\.(payment|payout)/i);
+});
+
 test("owned database role bootstrap creates no credentials and constrains sessions", async () => {
   const sql = await readFile(new URL("../database/bootstrap/0000_roles.sql", import.meta.url), "utf8");
   assert.match(sql, /no login/i);
@@ -84,6 +102,7 @@ test("owned database role bootstrap creates no credentials and constrains sessio
   assert.match(sql, /nobypassrls/i);
   assert.match(sql, /statement_timeout/);
   assert.match(sql, /idle_in_transaction_session_timeout/);
+  assert.match(sql, /peerarena_settlement_worker/);
   assert.doesNotMatch(sql, /password\s+'[^']+'/i);
   assert.doesNotMatch(sql, /create\s+role\s+\w+\s+login/i);
 });
