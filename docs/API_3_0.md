@@ -2,6 +2,8 @@
 
 The local Node service exposes the application contract below. It is a simulated-funds service: the identity is a demo session, sports data is synthetic, and payment/payout routes fail closed. The routes are intentionally shaped so that a Supabase-backed Route Handler or separately deployed API can replace the in-memory implementation without changing the client contract.
 
+The Vercel deployment keeps the Hobby function count low with a rewrite-backed `api/index.mjs` router. `/api/:path*` is rewritten to that single function with the original API path carried in a reserved internal query parameter, then delegated to the same hardened `handleRequest` implementation. This keeps nested routes such as `/api/events/live`, `/api/events/:id/markets`, `/api/challenges/:id/accept` and `/api/users/me/challenges` active without duplicating security logic across functions.
+
 The local API now applies an in-memory sliding-window limiter: 120 read requests and 30 mutation requests per client address and route per minute. Exceeded mutation calls return `429`, `Retry-After`, and `RATE_LIMITED`. A production deployment must replace this process-local limiter with a shared store/WAF policy so limits remain consistent across instances.
 
 The repository also contains a fail-closed Supabase Auth adapter in `src/backend/auth.mjs` and bearer-session boundary in `src/backend/auth-session.mjs`. The default `AUTH_MODE=demo` keeps the synthetic session. Setting `AUTH_MODE=supabase` explicitly enables the Auth routes through those boundaries; absent or invalid Supabase configuration produces `AUTH_NOT_CONFIGURED` with `503` and never falls back to the demo identity.

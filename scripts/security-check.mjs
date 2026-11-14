@@ -14,8 +14,9 @@ async function readProjectFile(relativePath) {
   return readFile(path.join(projectRoot, relativePath), "utf8");
 }
 
-const [vercelText, gitignore, packageText, serverText, configText, paymentsText, securityEventsText, databaseText, ownedPostgresText, databaseMigrationText, databaseProcedureMigrationText, databaseAcceptanceMigrationText, databaseSettlementMigrationText, databaseBootstrapText, worklogText] = await Promise.all([
+const [vercelText, routerText, gitignore, packageText, serverText, configText, paymentsText, securityEventsText, databaseText, ownedPostgresText, databaseMigrationText, databaseProcedureMigrationText, databaseAcceptanceMigrationText, databaseSettlementMigrationText, databaseBootstrapText, worklogText] = await Promise.all([
   readProjectFile("vercel.json"),
+  readProjectFile("api/index.mjs"),
   readProjectFile(".gitignore"),
   readProjectFile("package.json"),
   readProjectFile("server.mjs"),
@@ -74,6 +75,12 @@ for (const requiredSourceMarker of [
   "runtimeSecurity",
   "ownedDatabaseReady"
 ]) requireCondition(serverText.includes(requiredSourceMarker), `Server hardening marker is missing: ${requiredSourceMarker}`);
+for (const requiredRouteMarker of ["__peerarena_path", "Object.create(request)"]) {
+  requireCondition(routerText.includes(requiredRouteMarker), `Vercel route consolidation marker is missing: ${requiredRouteMarker}`);
+}
+for (const requiredRewriteMarker of ["/api/:path*", "/api/index?__peerarena_path=/api/:path*"]) {
+  requireCondition(vercelText.includes(requiredRewriteMarker), `Vercel API rewrite marker is missing: ${requiredRewriteMarker}`);
+}
 
 for (const requiredTelemetryMarker of ["SecurityEventLogger", "MAX_BUFFERED_EVENTS", "MAX_SNAPSHOT_SIZE", "new URL"]) {
   requireCondition(securityEventsText.includes(requiredTelemetryMarker) || serverText.includes(requiredTelemetryMarker), `Security telemetry marker is missing: ${requiredTelemetryMarker}`);
