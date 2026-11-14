@@ -5,20 +5,20 @@
 This repository is a working static frontend plus a local Node HTTP demo service. It is not yet a Next.js App Router project. The 3.0 implementation preserves the working frontend and adds:
 
 - `vercel.json` with a verified static `dist` output, security headers and a reproducible build command.
-- `api/[...path].mjs` delegating same-origin `/api/*` requests to the hardened Node handler as a Vercel Function.
+- `api/index.mjs` plus rewrite rules delegating same-origin `/api/*` requests to the hardened Node handler as one Vercel Function.
 - `scripts/verify-build.mjs` and `npm run check` for CI/build verification.
 - `supabase/migrations/0001_peerarena_foundation.sql` containing the PostgreSQL schema, constraints, indexes, trigger and RLS foundation.
 - server-side service modules for exact-unit ledger calculations, settlement and provider boundaries, including explicitly gated SeevPlus and Paystack sandbox adapters.
 - a fail-closed Supabase Auth adapter with mock-fetch contract tests; it is not yet wired into protected routes.
 - a CI workflow at `.github/workflows/ci.yml`.
 
-`vercel.json` does not claim that `server.mjs` itself is a Vercel Function. The catch-all adapter exposes the existing synthetic demo API on Vercel without turning the local HTTP listener into a serverless process. It remains in-memory per function instance and is not a durable production API.
+`vercel.json` does not claim that `server.mjs` itself is a Vercel Function. The rewrite-backed adapter exposes the existing synthetic demo API on Vercel without turning the local HTTP listener into a serverless process. It remains in-memory per function instance and is not a durable production API.
 
 ## Deployment status
 
-The PeerArena demo is deployed at [https://peerarena.vercel.app](https://peerarena.vercel.app). Vercel authentication protection remains enabled, so anonymous visitors are not granted access. The same-origin demo API is now routed through `api/[...path].mjs`; it uses synthetic in-memory state only. No production database, first-party authentication, payment, payout or real-money path is connected.
+The PeerArena demo is deployed at [https://peerarena.vercel.app](https://peerarena.vercel.app). Vercel authentication protection remains enabled, so anonymous visitors are not granted access. The same-origin demo API is routed through rewrite-backed `api/index.mjs`; it uses synthetic in-memory state only. No production database, first-party authentication, payment, payout or real-money path is connected.
 
-The latest production deployment is `dpl_BakGkmVbnvheoKTyJGZTCWyVcWvd` and reported `READY`. Vercel's `vercel_authentication` protection was observed after deployment and was not changed. The post-deployment `/api/health`, `/api/readiness`, and `/api/events/live` smoke tests passed; readiness confirmed `frontend=ACTIVE`, `api=ACTIVE`, `payments=DISABLED`, `payouts=DISABLED` and `realMoney=BLOCKED`. The redundant legacy adapter was removed; the deployment contains one rewrite-backed `api/index` Vercel Function, and production-origin enforcement is now present in the request handler.
+The latest production deployment is `dpl_CUbWUB3krNi2NjaNNFjaWUGz9h7Q` and reported `READY`. Vercel's `vercel_authentication` protection was observed after deployment and was not changed. The post-deployment `/api/health`, `/api/readiness`, and `/api/events/live` smoke tests passed; readiness confirmed `frontend=ACTIVE`, `api=ACTIVE`, `payments=DISABLED`, `payouts=DISABLED` and `realMoney=BLOCKED`. The deployment contains one rewrite-backed `api/index` Vercel Function, production-origin enforcement is present in the request handler, and misconfigured production demo authentication now fails closed with `503 PRODUCTION_AUTH_REQUIRED`.
 
 ## Exact access/configuration needed
 
