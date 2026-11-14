@@ -18,7 +18,7 @@ This repository is a working static frontend plus a local Node HTTP demo service
 
 The PeerArena demo is deployed at [https://peerarena.vercel.app](https://peerarena.vercel.app). Vercel authentication protection remains enabled, so anonymous visitors are not granted access. The same-origin demo API is now routed through `api/[...path].mjs`; it uses synthetic in-memory state only. No production database, first-party authentication, payment, payout or real-money path is connected.
 
-The latest production deployment is `dpl_AkrZd2qfE3gzfEnwe38bWeRmix31` and reported `READY`. Vercel's `vercel_authentication` protection was observed after deployment and was not changed. The post-deployment `/api/health`, `/api/readiness`, `/api/events/live` and `/api/admin/security` smoke tests passed; readiness confirmed `frontend=ACTIVE`, `api=ACTIVE`, `payments=DISABLED`, `payouts=DISABLED` and `realMoney=BLOCKED`. The redundant legacy adapter was removed; the deployment now contains one rewrite-backed `api/index` Vercel Function.
+The latest production deployment is `dpl_BakGkmVbnvheoKTyJGZTCWyVcWvd` and reported `READY`. Vercel's `vercel_authentication` protection was observed after deployment and was not changed. The post-deployment `/api/health`, `/api/readiness`, and `/api/events/live` smoke tests passed; readiness confirmed `frontend=ACTIVE`, `api=ACTIVE`, `payments=DISABLED`, `payouts=DISABLED` and `realMoney=BLOCKED`. The redundant legacy adapter was removed; the deployment contains one rewrite-backed `api/index` Vercel Function, and production-origin enforcement is now present in the request handler.
 
 ## Exact access/configuration needed
 
