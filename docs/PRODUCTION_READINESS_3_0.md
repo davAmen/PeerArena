@@ -22,6 +22,7 @@
 - [x] Vercel static build configuration, security headers and CI workflow.
 - [x] Hardened HTTP baseline, production Origin checks, request correlation IDs, bounded timeouts and repeatable security/dependency checks.
 - [x] Redacted, bounded runtime security-event telemetry surfaced through the protected admin security view.
+- [x] Severity-aware high/critical runtime security alert signal with bounded severity counts; external notification delivery remains a separate launch gate.
 - [x] Owned PostgreSQL configuration gate and default-deny hardening migration with forced RLS, append-only evidence and database integrity triggers.
 - [x] Narrow owned-PostgreSQL `create_challenge` procedure contract with actor checks, idempotency, self-exclusion and audit evidence.
 - [x] Synthetic-only owned-PostgreSQL `accept_challenge` procedure with account locks, balance checks, double-entry reservation, idempotency and audit evidence.
