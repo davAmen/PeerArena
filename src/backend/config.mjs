@@ -12,6 +12,7 @@ export function readRuntimeConfig(env = process.env) {
     appEnv: env.APP_ENV ?? "demo",
     authMode: env.AUTH_MODE ?? "demo",
     paymentMode: env.PAYMENT_MODE ?? "mock",
+    paymentProvider: env.PAYMENT_PROVIDER ?? "mock",
     realMoneyEnabled: asBoolean(env.REAL_MONEY_ENABLED, false),
     mockPaymentsEnabled: asBoolean(env.MOCK_PAYMENTS_ENABLED, true),
     googleAuthEnabled: asBoolean(env.GOOGLE_AUTH_ENABLED, false),

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createHmac } from "node:crypto";
 import { readRuntimeConfig, realMoneyGate } from "../src/backend/config.mjs";
 import { ownedDatabaseGate, readDatabaseConfig } from "../src/backend/database.mjs";
 import {
@@ -16,7 +17,14 @@ import {
   makeBalancedTransaction,
   toMinorUnits
 } from "../src/backend/ledger.mjs";
-import { createPaymentProvider, MockPaymentProvider, PAYMENT_PROVIDER_MANIFEST } from "../src/backend/payments.mjs";
+import {
+  createPaymentProvider,
+  createPaymentProviderFromEnv,
+  MockPaymentProvider,
+  PAYMENT_PROVIDER_MANIFEST,
+  verifyPaystackWebhook,
+  verifySeevWebhook
+} from "../src/backend/payments.mjs";
 import { determineSettlement } from "../src/backend/settlement.mjs";
 import { SlidingWindowRateLimiter } from "../src/backend/rate-limit.mjs";
 import {
@@ -107,12 +115,110 @@ test("mock provider models delayed, failed and duplicate webhook scenarios", () 
   assert.equal(provider.simulatePayout("payout-pending", "FAILED").status, "FAILED");
 });
 
-test("external providers fail closed until approved credentials are configured", () => {
+test("external providers fail closed until approved credentials are configured", async () => {
   const provider = createPaymentProvider("paystack");
   assert.equal(provider.getCapabilities().collection, false);
   assert.equal(provider.supportsPayout(), false);
   assert.equal(provider.getCapabilities().manifest.endpoints.initializePayment, PAYMENT_PROVIDER_MANIFEST.paystack.endpoints.initializePayment);
-  assert.throws(() => provider.initializePayment({ reference: "order-1", amountMinor: 100 }));
+  await assert.rejects(() => provider.initializePayment({ reference: "order-1", amountMinor: 100 }));
+});
+
+test("SeevPlus sandbox adapter follows the documented checkout and raw-body webhook boundary", async () => {
+  const calls = [];
+  const secret = "seev-webhook-secret";
+  const timestamp = "1794595200";
+  const rawBody = JSON.stringify({ event: "payment.succeeded", data: { transaction: { reference: "PAY-1", status: "completed" } } });
+  const signature = `v1=${createHmac("sha256", secret).update(`${timestamp}.${rawBody}`).digest("hex")}`;
+  const provider = createPaymentProvider("seevplus", {
+    mode: "sandbox",
+    apiKey: "sv_sandbox_test",
+    webhookSecret: secret,
+    now: () => Number(timestamp) * 1000,
+    fetchImpl: async (url, init) => {
+      calls.push({ url, init, body: init.body ? JSON.parse(init.body) : undefined });
+      return new Response(JSON.stringify({ data: { reference: "PAY-1", status: "pending", checkout_url: "https://pay.seev.test/PAY-1" } }), { status: 201 });
+    }
+  });
+
+  const created = await provider.initializePayment({
+    reference: "peerarena-order-1",
+    amountMinor: "10000",
+    currency: "GHS",
+    customerName: "Kwame Asante",
+    customerEmail: "kwame@example.com",
+    redirectUrl: "https://peerarena.example/payment/callback"
+  });
+  assert.equal(created.provider, "seevplus");
+  assert.equal(created.status, "PENDING");
+  assert.equal(calls[0].url, "https://api.seevplus.com/api/v1/developer/payments");
+  assert.equal(calls[0].init.headers.Authorization, "Bearer sv_sandbox_test");
+  assert.equal(calls[0].init.headers["Idempotency-Key"], "peerarena-order-1");
+  assert.equal(calls[0].body.amount, 10000);
+  assert.equal(calls[0].body.meta.peerarena_reference, "peerarena-order-1");
+  assert.equal(provider.verifyWebhook({ rawBody, timestamp, signature }), true);
+  assert.equal(provider.verifyWebhook({ rawBody: JSON.stringify(JSON.parse(rawBody)), timestamp, signature: `${signature}x` }), false);
+  assert.equal(provider.getCapabilities().payout, false);
+  assert.throws(() => provider.createPayout({ reference: "payout-1" }), /payouts are disabled/);
+});
+
+test("Paystack sandbox adapter uses server-side secret authentication and raw webhook signatures", async () => {
+  const calls = [];
+  const secret = "sk_test_peerarena";
+  const rawBody = JSON.stringify({ event: "charge.success", data: { reference: "PA-1", status: "success", amount: 5000, currency: "GHS" } });
+  const signature = createHmac("sha512", secret).update(rawBody).digest("hex");
+  const provider = createPaymentProvider("paystack", {
+    mode: "sandbox",
+    apiKey: secret,
+    webhookSecret: secret,
+    fetchImpl: async (url, init) => {
+      calls.push({ url, init, body: init.body ? JSON.parse(init.body) : undefined });
+      return new Response(JSON.stringify({ status: true, data: { reference: "PA-1", status: "success", amount: 5000, currency: "GHS", authorization_url: "https://checkout.paystack.test/PA-1", access_code: "test-access" } }), { status: 200 });
+    }
+  });
+
+  const created = await provider.initializePayment({ reference: "peerarena-paystack-1", amountMinor: 5000, customerEmail: "kwame@example.com", redirectUrl: "https://peerarena.example/payment/callback" });
+  const verified = await provider.verifyPayment("PA-1");
+  assert.equal(created.checkoutUrl, "https://checkout.paystack.test/PA-1");
+  assert.equal(created.accessCode, "test-access");
+  assert.equal(verified.status, "SUCCESS");
+  assert.equal(calls[0].url, "https://api.paystack.co/transaction/initialize");
+  assert.equal(calls[0].init.headers.Authorization, `Bearer ${secret}`);
+  assert.equal(calls[0].body.amount, 5000);
+  assert.equal(calls[1].url, "https://api.paystack.co/transaction/verify/PA-1");
+  assert.equal(provider.verifyWebhook({ rawBody, signature }), true);
+  assert.equal(verifyPaystackWebhook({ rawBody, signature: `${signature}0`, secret }), false);
+});
+
+test("provider factory only enables external adapters for explicit non-production sandbox mode", () => {
+  const sandbox = createPaymentProviderFromEnv({
+    PAYMENT_MODE: "sandbox",
+    PAYMENT_PROVIDER: "paystack",
+    PAYSTACK_SECRET_KEY: "sk_test_peerarena",
+    PAYSTACK_WEBHOOK_SECRET: "webhook-secret",
+    APP_ENV: "staging",
+    REAL_MONEY_ENABLED: "false"
+  }, async () => new Response("{}", { status: 200 }));
+  assert.equal(sandbox.getCapabilities().sandboxReady, true);
+  assert.equal(sandbox.getCapabilities().realMoney, false);
+
+  const production = createPaymentProviderFromEnv({
+    PAYMENT_MODE: "sandbox",
+    PAYMENT_PROVIDER: "paystack",
+    PAYSTACK_SECRET_KEY: "sk_test_peerarena",
+    APP_ENV: "production",
+    REAL_MONEY_ENABLED: "false"
+  });
+  assert.equal(production.getCapabilities().collection, false);
+});
+
+test("provider signature helpers reject stale Seev events and malformed signatures safely", () => {
+  const secret = "secret";
+  const timestamp = "1794595200";
+  const rawBody = "{\"event\":\"payment.succeeded\"}";
+  const signature = `v1=${createHmac("sha256", secret).update(`${timestamp}.${rawBody}`).digest("hex")}`;
+  assert.equal(verifySeevWebhook({ rawBody, timestamp, signature, secret, now: () => Number(timestamp) * 1000 }), true);
+  assert.equal(verifySeevWebhook({ rawBody, timestamp, signature, secret, now: () => Number(timestamp) * 1000 + 301_000 }), false);
+  assert.equal(verifySeevWebhook({ rawBody, timestamp, signature: "v1=bad", secret, now: () => Number(timestamp) * 1000 }), false);
 });
 
 test("settlement handles multiple winners and preserves the pool total", () => {
@@ -146,6 +252,7 @@ test("real-money activation is default-deny even when an individual flag is set"
 
 test("runtime configuration defaults to synthetic auth and requires explicit Supabase mode", () => {
   assert.equal(readRuntimeConfig({}).authMode, "demo");
+  assert.equal(readRuntimeConfig({}).paymentProvider, "mock");
   assert.equal(readRuntimeConfig({ AUTH_MODE: "supabase" }).authMode, "supabase");
   assert.equal(readRuntimeConfig({ NEXT_PUBLIC_SUPABASE_URL: "https://peerarena.supabase.co", NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test" }).supabaseConfigured, true);
   assert.equal(readRuntimeConfig({ NEXT_PUBLIC_SUPABASE_URL: "https://peerarena.supabase.co", SUPABASE_SECRET_KEY: "sb_secret_test" }).supabasePersistenceConfigured, true);

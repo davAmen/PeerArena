@@ -11,6 +11,7 @@ console.log(JSON.stringify({
   appEnv: config.appEnv,
   authMode: config.authMode,
   paymentMode: config.paymentMode,
+  paymentProvider: config.paymentProvider,
   supabaseConfigured: config.supabaseConfigured,
   supabasePersistenceConfigured: config.supabasePersistenceConfigured,
   databaseProvider: config.databaseProvider,

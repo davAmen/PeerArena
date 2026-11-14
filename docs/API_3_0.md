@@ -43,7 +43,7 @@ In demo mode, `GET /api/auth/session`, `POST /api/auth/logout`, `GET /api/users/
 
 ## Payments and payouts
 
-`POST /api/payments/checkout`, both provider webhook routes, and payout creation are disabled. Read-only payment and payout lookups return an explicit `DISABLED` status. No browser request can create a real payment or payout.
+`POST /api/payments/checkout`, both provider webhook routes, and payout creation are disabled in the public demo API. Read-only payment and payout lookups return an explicit `DISABLED` status. No browser request can create a real payment or payout.
 
 The service modules in `src/backend/` define the replacement boundary:
 
@@ -59,10 +59,10 @@ The service modules in `src/backend/` define the replacement boundary:
 
 The owned PostgreSQL procedure boundary currently exposes only a reviewed `create_challenge` procedure at the database layer. It validates actor context, active/open eligibility, self-exclusion, market outcomes, rule version, expiry, idempotency and audit evidence. It does not reserve funds, settle challenges, create payouts or call providers, and the Node demo does not connect to it yet.
 - `ledger.mjs` represents amounts as integer minor units.
-- `payments.mjs` defines the provider interface and a working mock provider.
+- `payments.mjs` defines the working mock provider plus explicit SeevPlus and Paystack sandbox adapters. External adapters require an explicit non-production sandbox mode, server-only credentials and raw-body signature verification; both report payout support as disabled.
 - `settlement.mjs` calculates a deterministic shared-pool distribution.
 - `api-contract.mjs` keeps the route inventory explicit.
 
 ## Production replacement requirements
 
-Before the remaining routes can be connected to Supabase Auth/PostgreSQL or external providers, add secure cookie/session handling, profile provisioning, schema validation, shared rate limiting, signed webhook verification against the raw body, durable idempotency records, transactional challenge creation/acceptance/settlement procedures and audit logging. The SQL migration deliberately denies direct client access to authoritative financial tables.
+Before the remaining routes can be connected to Supabase Auth/PostgreSQL or external providers, add secure cookie/session handling, profile provisioning, schema validation, shared rate limiting, durable payment-attempt and webhook-event idempotency records, transactional challenge creation/acceptance/settlement procedures and audit logging. The SQL migration deliberately denies direct client access to authoritative financial tables.

@@ -1,19 +1,23 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
+
 export const PAYMENT_PROVIDERS = Object.freeze(["seevplus", "paystack", "mock"]);
 
 export const PAYMENT_PROVIDER_MANIFEST = Object.freeze({
   seevplus: Object.freeze({
     provider: "seevplus",
+    sandbox: true,
     credential: "SEEV_CHECKOUT_API_KEY",
     docs: "https://docs.seevcash.com/docs",
     endpoints: Object.freeze({
       initializePayment: "https://api.seevplus.com/api/v1/developer/payments",
       verifyPayment: "https://api.seevplus.com/api/v1/developer/payments/{sessionReference}"
     }),
-    webhookSignature: "PENDING_PROVIDER_CONFIRMATION",
-    payoutCapability: "PENDING_WRITTEN_PROVIDER_CONFIRMATION"
+    webhookSignature: "HMAC-SHA256(timestamp + '.' + rawBody), X-Seev-Signature=v1=hex",
+    payoutCapability: "DISABLED_UNTIL_WRITTEN_PROVIDER_APPROVAL"
   }),
   paystack: Object.freeze({
     provider: "paystack",
+    sandbox: true,
     credential: "PAYSTACK_SECRET_KEY",
     docs: "https://paystack.com/docs",
     endpoints: Object.freeze({
@@ -22,15 +26,184 @@ export const PAYMENT_PROVIDER_MANIFEST = Object.freeze({
       createTransfer: "https://api.paystack.co/transfer",
       verifyTransfer: "https://api.paystack.co/transfer/verify/{reference}"
     }),
-    webhookSignature: "Paystack-Signature-or-x-paystack-signature",
-    payoutCapability: "PENDING_WRITTEN_PROVIDER_CONFIRMATION"
+    webhookSignature: "HMAC-SHA512(rawBody), x-paystack-signature=hex",
+    payoutCapability: "DISABLED_UNTIL_WRITTEN_PROVIDER_APPROVAL"
   })
 });
 
+const MAX_IDEMPOTENCY_KEY_LENGTH = 128;
+const DEFAULT_TIMEOUT_MS = 10_000;
+const DEFAULT_SEEV_TIMESTAMP_WINDOW_SECONDS = 300;
+const PAYMENT_SUCCESS_STATUSES = new Set(["success", "succeeded", "completed"]);
+const PAYMENT_FAILURE_STATUSES = new Set(["failed", "cancelled", "canceled", "reversed", "abandoned"]);
+
+export class PaymentProviderError extends Error {
+  constructor(message, { code = "PAYMENT_PROVIDER_ERROR", status = 500, providerStatus = undefined, cause = undefined } = {}) {
+    super(message, cause === undefined ? undefined : { cause });
+    this.name = "PaymentProviderError";
+    this.code = code;
+    this.status = status;
+    this.providerStatus = providerStatus;
+  }
+}
+
+function requiredString(value, name, { maxLength = 2_048 } = {}) {
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new PaymentProviderError(`${name} is required.`, { code: "PAYMENT_INVALID_INPUT", status: 400 });
+  }
+  if (value.length > maxLength) {
+    throw new PaymentProviderError(`${name} is too long.`, { code: "PAYMENT_INVALID_INPUT", status: 400 });
+  }
+  return value.trim();
+}
+
+function emailAddress(value) {
+  const email = requiredString(value, "Customer email", { maxLength: 320 }).toLowerCase();
+  if (!/^\S+@\S+\.\S+$/.test(email)) {
+    throw new PaymentProviderError("Customer email is invalid.", { code: "PAYMENT_INVALID_INPUT", status: 400 });
+  }
+  return email;
+}
+
+function minorAmount(value) {
+  const text = String(value ?? "").trim();
+  if (!/^[1-9]\d*$/.test(text)) {
+    throw new PaymentProviderError("Payment amount must be a positive integer in minor units.", { code: "PAYMENT_INVALID_INPUT", status: 400 });
+  }
+  const amount = BigInt(text);
+  if (amount > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new PaymentProviderError("Payment amount exceeds the provider adapter limit.", { code: "PAYMENT_INVALID_INPUT", status: 400 });
+  }
+  return Number(amount);
+}
+
+function currencyCode(value = "GHS") {
+  const currency = requiredString(value, "Payment currency", { maxLength: 3 }).toUpperCase();
+  if (!/^[A-Z]{3}$/.test(currency)) {
+    throw new PaymentProviderError("Payment currency is invalid.", { code: "PAYMENT_INVALID_INPUT", status: 400 });
+  }
+  return currency;
+}
+
+function httpUrl(value, name) {
+  const raw = requiredString(value, name, { maxLength: 2_048 });
+  let parsed;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new PaymentProviderError(`${name} is invalid.`, { code: "PAYMENT_INVALID_INPUT", status: 400 });
+  }
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    throw new PaymentProviderError(`${name} must use HTTP or HTTPS.`, { code: "PAYMENT_INVALID_INPUT", status: 400 });
+  }
+  return parsed.href;
+}
+
+function idempotencyKey(value) {
+  const key = requiredString(value, "Idempotency key", { maxLength: MAX_IDEMPOTENCY_KEY_LENGTH });
+  if (key.length < 8) {
+    throw new PaymentProviderError("Idempotency key is too short.", { code: "PAYMENT_INVALID_INPUT", status: 400 });
+  }
+  return key;
+}
+
+function objectOrEmpty(value, name) {
+  if (value === undefined || value === null) return {};
+  if (typeof value !== "object" || Array.isArray(value)) {
+    throw new PaymentProviderError(`${name} must be an object.`, { code: "PAYMENT_INVALID_INPUT", status: 400 });
+  }
+  return value;
+}
+
+function normalizePaymentStatus(value) {
+  const status = String(value ?? "pending").trim().toLowerCase();
+  if (PAYMENT_SUCCESS_STATUSES.has(status)) return "SUCCESS";
+  if (PAYMENT_FAILURE_STATUSES.has(status)) return status === "reversed" ? "REVERSED" : "FAILED";
+  return "PENDING";
+}
+
+function providerPayload(payload) {
+  return payload && typeof payload === "object" ? payload : {};
+}
+
+async function readPayload(response) {
+  const raw = await response.text();
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return { message: "Provider returned a non-JSON response." };
+  }
+}
+
+async function providerRequest({ fetchImpl, url, method = "GET", headers = {}, body, timeoutMs = DEFAULT_TIMEOUT_MS }) {
+  if (typeof fetchImpl !== "function") {
+    throw new PaymentProviderError("Payment provider transport is unavailable.", { code: "PAYMENT_PROVIDER_UNAVAILABLE", status: 503 });
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let response;
+  try {
+    response = await fetchImpl(url, {
+      method,
+      headers: { Accept: "application/json", ...headers },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      signal: controller.signal
+    });
+  } catch (error) {
+    throw new PaymentProviderError("Payment provider is unavailable.", {
+      code: error?.name === "AbortError" ? "PAYMENT_PROVIDER_TIMEOUT" : "PAYMENT_PROVIDER_UNAVAILABLE",
+      status: 503,
+      cause: error
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+
+  const payload = await readPayload(response);
+  if (!response.ok) {
+    throw new PaymentProviderError("Payment provider rejected the request.", {
+      code: "PAYMENT_PROVIDER_REJECTED",
+      status: 502,
+      providerStatus: response.status
+    });
+  }
+  return providerPayload(payload);
+}
+
+function safeHmacEqual({ algorithm, secret, message, signature, prefix = "" }) {
+  if (typeof secret !== "string" || secret.length === 0 || typeof signature !== "string") return false;
+  const expected = `${prefix}${createHmac(algorithm, secret).update(message, "utf8").digest("hex")}`;
+  const expectedBuffer = Buffer.from(expected, "utf8");
+  const actualBuffer = Buffer.from(signature, "utf8");
+  if (expectedBuffer.length !== actualBuffer.length) return false;
+  return timingSafeEqual(expectedBuffer, actualBuffer);
+}
+
+export function verifySeevWebhook({ rawBody, timestamp, signature, secret, now = Date.now, maxAgeSeconds = DEFAULT_SEEV_TIMESTAMP_WINDOW_SECONDS } = {}) {
+  if (typeof rawBody !== "string" || typeof timestamp !== "string" || !/^\d+$/.test(timestamp)) return false;
+  const timestampSeconds = Number(timestamp);
+  if (!Number.isSafeInteger(timestampSeconds)) return false;
+  if (Math.abs(now() / 1_000 - timestampSeconds) > maxAgeSeconds) return false;
+  return safeHmacEqual({
+    algorithm: "sha256",
+    secret,
+    message: `${timestamp}.${rawBody}`,
+    signature,
+    prefix: "v1="
+  });
+}
+
+export function verifyPaystackWebhook({ rawBody, signature, secret } = {}) {
+  if (typeof rawBody !== "string") return false;
+  return safeHmacEqual({ algorithm: "sha512", secret, message: rawBody, signature });
+}
+
 class DisabledProvider {
-  constructor(name) {
+  constructor(name, reason = "Provider credentials, sandbox mode or approval are not configured.") {
     this.name = name;
     this.manifest = PAYMENT_PROVIDER_MANIFEST[name];
+    this.reason = reason;
   }
 
   getCapabilities() {
@@ -40,27 +213,226 @@ class DisabledProvider {
       payout: false,
       webhook: false,
       sandboxReady: false,
-      manifest: this.manifest,
-      reason: "Provider credentials and approved gaming use case are not configured."
+      simulated: false,
+      reason: this.reason,
+      manifest: this.manifest
     });
   }
 
   supportsCollection() { return false; }
   supportsPayout() { return false; }
-  initializePayment() { throw new Error(`${this.name} collection adapter is disabled until provider approval and credentials are configured.`); }
-  verifyPayment() { throw new Error(`${this.name} verification adapter is disabled.`); }
+
+  #disabled(operation) {
+    throw new PaymentProviderError(`${this.name} ${operation} is disabled until its sandbox boundary is explicitly configured and approved.`, {
+      code: "PAYMENT_PROVIDER_DISABLED",
+      status: 503
+    });
+  }
+
+  initializePayment() { return this.#disabled("collection"); }
+  verifyPayment() { return this.#disabled("verification"); }
   verifyWebhook() { return false; }
-  reconcilePayment() { throw new Error(`${this.name} reconciliation adapter is disabled.`); }
-  createPayout() { throw new Error(`${this.name} payout adapter is disabled; no payout capability is assumed.`); }
-  getPayoutStatus() { throw new Error(`${this.name} payout adapter is disabled.`); }
+  reconcilePayment() { return this.#disabled("reconciliation"); }
+  createPayout() { return this.#disabled("payout"); }
+  getPayoutStatus() { return this.#disabled("payout status"); }
 }
 
-export class SeevPlusProvider extends DisabledProvider {
-  constructor() { super("seevplus"); }
+class SandboxProvider {
+  constructor({ name, apiKey, webhookSecret, fetchImpl = globalThis.fetch, now = Date.now, timeoutMs = DEFAULT_TIMEOUT_MS, mode = "sandbox", production = false, realMoneyEnabled = false } = {}) {
+    this.name = name;
+    this.manifest = PAYMENT_PROVIDER_MANIFEST[name];
+    this.apiKey = typeof apiKey === "string" ? apiKey.trim() : "";
+    this.webhookSecret = typeof webhookSecret === "string" ? webhookSecret.trim() : "";
+    this.fetchImpl = fetchImpl;
+    this.now = now;
+    this.timeoutMs = timeoutMs;
+    this.enabled = mode === "sandbox" && production !== true && realMoneyEnabled !== true && this.apiKey.length > 0;
+  }
+
+  getCapabilities() {
+    return Object.freeze({
+      provider: this.name,
+      collection: this.enabled,
+      payout: false,
+      webhook: this.enabled && this.webhookSecret.length > 0,
+      sandboxReady: this.enabled,
+      simulated: false,
+      realMoney: false,
+      approvalRequired: true,
+      reason: this.enabled ? "Sandbox adapter only; authoritative funds and payouts remain blocked." : "Sandbox mode and a provider key are required; production activation is fail-closed.",
+      manifest: this.manifest
+    });
+  }
+
+  supportsCollection() { return this.enabled; }
+  supportsPayout() { return false; }
+
+  assertCollection() {
+    if (!this.enabled) {
+      throw new PaymentProviderError(`${this.name} sandbox adapter is disabled.`, { code: "PAYMENT_PROVIDER_DISABLED", status: 503 });
+    }
+  }
+
+  assertWebhook() {
+    this.assertCollection();
+    if (!this.webhookSecret) {
+      throw new PaymentProviderError(`${this.name} webhook verification is not configured.`, { code: "PAYMENT_WEBHOOK_NOT_CONFIGURED", status: 503 });
+    }
+  }
+
+  unsupportedPayout() {
+    throw new PaymentProviderError(`${this.name} payouts are disabled until written provider approval and a reviewed funds-control procedure exist.`, {
+      code: "PAYMENT_PAYOUT_DISABLED",
+      status: 403
+    });
+  }
+
+  getPayoutStatus() { return this.unsupportedPayout(); }
+  createPayout() { return this.unsupportedPayout(); }
 }
 
-export class PaystackProvider extends DisabledProvider {
-  constructor() { super("paystack"); }
+export class SeevPlusProvider extends SandboxProvider {
+  constructor(options = {}) {
+    super({ ...options, name: "seevplus" });
+    this.baseUrl = String(options.baseUrl ?? "https://api.seevplus.com").replace(/\/+$/, "");
+  }
+
+  async initializePayment({ reference, amountMinor, currency = "GHS", customerName, customerEmail, customerPhone, redirectUrl, metadata, idempotencyKey: explicitIdempotencyKey } = {}) {
+    this.assertCollection();
+    const stableReference = requiredString(reference, "Payment reference", { maxLength: MAX_IDEMPOTENCY_KEY_LENGTH });
+    const body = {
+      type: "checkout",
+      amount: minorAmount(amountMinor),
+      currency: currencyCode(currency),
+      recipient: {
+        name: requiredString(customerName, "Customer name", { maxLength: 200 }),
+        email: emailAddress(customerEmail),
+        ...(customerPhone ? { phone: requiredString(customerPhone, "Customer phone", { maxLength: 40 }) } : {})
+      },
+      redirect_url: httpUrl(redirectUrl, "Redirect URL"),
+      meta: { peerarena_reference: stableReference, ...objectOrEmpty(metadata, "Payment metadata") }
+    };
+    const payload = await providerRequest({
+      fetchImpl: this.fetchImpl,
+      url: `${this.baseUrl}/api/v1/developer/payments`,
+      method: "POST",
+      timeoutMs: this.timeoutMs,
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        "Content-Type": "application/json",
+        "Idempotency-Key": idempotencyKey(explicitIdempotencyKey ?? stableReference)
+      },
+      body
+    });
+    const data = providerPayload(payload.data);
+    return Object.freeze({
+      provider: this.name,
+      reference: data.reference ?? null,
+      status: normalizePaymentStatus(data.status),
+      checkoutUrl: data.checkout_url ?? null,
+      providerStatus: data.status ?? null,
+      sandbox: true,
+      raw: payload
+    });
+  }
+
+  async verifyPayment(reference) {
+    this.assertCollection();
+    const sessionReference = encodeURIComponent(requiredString(reference, "Payment reference", { maxLength: 256 }));
+    const payload = await providerRequest({
+      fetchImpl: this.fetchImpl,
+      url: `${this.baseUrl}/api/v1/developer/payments/${sessionReference}`,
+      timeoutMs: this.timeoutMs
+    });
+    const data = providerPayload(payload.data);
+    return Object.freeze({
+      provider: this.name,
+      reference: data.reference ?? reference,
+      status: normalizePaymentStatus(data.status),
+      providerStatus: data.status ?? null,
+      sandbox: true,
+      raw: payload
+    });
+  }
+
+  verifyWebhook({ rawBody, timestamp, signature } = {}) {
+    this.assertWebhook();
+    return verifySeevWebhook({ rawBody, timestamp, signature, secret: this.webhookSecret, now: this.now });
+  }
+
+  async reconcilePayment(reference) { return this.verifyPayment(reference); }
+}
+
+export class PaystackProvider extends SandboxProvider {
+  constructor(options = {}) {
+    super({ ...options, name: "paystack" });
+    this.baseUrl = String(options.baseUrl ?? "https://api.paystack.co").replace(/\/+$/, "");
+  }
+
+  #headers() {
+    return { Authorization: `Bearer ${this.apiKey}`, "Content-Type": "application/json" };
+  }
+
+  async initializePayment({ reference, amountMinor, currency = "GHS", customerEmail, redirectUrl, metadata } = {}) {
+    this.assertCollection();
+    const stableReference = requiredString(reference, "Payment reference", { maxLength: 100 });
+    const body = {
+      email: emailAddress(customerEmail),
+      amount: minorAmount(amountMinor),
+      currency: currencyCode(currency),
+      reference: stableReference,
+      ...(redirectUrl ? { callback_url: httpUrl(redirectUrl, "Callback URL") } : {}),
+      ...(metadata === undefined ? {} : { metadata: objectOrEmpty(metadata, "Payment metadata") })
+    };
+    const payload = await providerRequest({
+      fetchImpl: this.fetchImpl,
+      url: `${this.baseUrl}/transaction/initialize`,
+      method: "POST",
+      timeoutMs: this.timeoutMs,
+      headers: this.#headers(),
+      body
+    });
+    const data = providerPayload(payload.data);
+    return Object.freeze({
+      provider: this.name,
+      reference: data.reference ?? stableReference,
+      status: normalizePaymentStatus(data.status),
+      checkoutUrl: data.authorization_url ?? null,
+      accessCode: data.access_code ?? null,
+      providerStatus: data.status ?? null,
+      sandbox: true,
+      raw: payload
+    });
+  }
+
+  async verifyPayment(reference) {
+    this.assertCollection();
+    const transactionReference = encodeURIComponent(requiredString(reference, "Payment reference", { maxLength: 256 }));
+    const payload = await providerRequest({
+      fetchImpl: this.fetchImpl,
+      url: `${this.baseUrl}/transaction/verify/${transactionReference}`,
+      headers: this.#headers(),
+      timeoutMs: this.timeoutMs
+    });
+    const data = providerPayload(payload.data);
+    return Object.freeze({
+      provider: this.name,
+      reference: data.reference ?? reference,
+      status: normalizePaymentStatus(data.status),
+      amountMinor: data.amount === undefined ? undefined : String(data.amount),
+      currency: data.currency ?? undefined,
+      providerStatus: data.status ?? null,
+      sandbox: true,
+      raw: payload
+    });
+  }
+
+  verifyWebhook({ rawBody, signature } = {}) {
+    this.assertWebhook();
+    return verifyPaystackWebhook({ rawBody, signature, secret: this.webhookSecret });
+  }
+
+  async reconcilePayment(reference) { return this.verifyPayment(reference); }
 }
 
 export class MockPaymentProvider {
@@ -71,7 +443,7 @@ export class MockPaymentProvider {
     this.webhookEvents = new Set();
   }
 
-  getCapabilities() { return Object.freeze({ provider: this.name, collection: true, payout: true, webhook: true, simulated: true }); }
+  getCapabilities() { return Object.freeze({ provider: this.name, collection: true, payout: true, webhook: true, simulated: true, realMoney: false }); }
   supportsCollection() { return true; }
   supportsPayout() { return true; }
 
@@ -140,10 +512,33 @@ export class MockPaymentProvider {
   getPayoutStatus(reference) { return this.payouts.get(reference) ?? { provider: this.name, reference, status: "NOT_FOUND", simulated: true }; }
 }
 
-export function createPaymentProvider(name = "mock", { mockPaymentsEnabled = true } = {}) {
+function asBoolean(value, fallback = false) {
+  if (value === undefined || value === null || value === "") return fallback;
+  return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
+}
+
+export function createPaymentProvider(name = "mock", options = {}) {
   const normalized = String(name).toLowerCase();
-  if (normalized === "mock" && mockPaymentsEnabled) return new MockPaymentProvider();
-  if (normalized === "seevplus") return new SeevPlusProvider();
-  if (normalized === "paystack") return new PaystackProvider();
-  throw new Error(`Unsupported payment provider: ${name}`);
+  if (normalized === "mock") return options.mockPaymentsEnabled === false ? new DisabledProvider("mock", "Mock payments are disabled by configuration.") : new MockPaymentProvider();
+  if (normalized === "seevplus") return new SeevPlusProvider(options);
+  if (normalized === "paystack") return new PaystackProvider(options);
+  throw new PaymentProviderError(`Unsupported payment provider: ${name}`, { code: "PAYMENT_INVALID_PROVIDER", status: 400 });
+}
+
+export function createPaymentProviderFromEnv(env = process.env, fetchImpl = globalThis.fetch) {
+  const mode = String(env.PAYMENT_MODE ?? "mock").trim().toLowerCase();
+  const providerName = String(env.PAYMENT_PROVIDER ?? (mode === "sandbox" ? "mock" : mode)).trim().toLowerCase();
+  const common = {
+    mode,
+    production: String(env.APP_ENV ?? "demo").toLowerCase() === "production",
+    realMoneyEnabled: asBoolean(env.REAL_MONEY_ENABLED, false),
+    fetchImpl
+  };
+  if (providerName === "seevplus") {
+    return createPaymentProvider(providerName, { ...common, apiKey: env.SEEV_CHECKOUT_API_KEY, webhookSecret: env.SEEV_WEBHOOK_SECRET });
+  }
+  if (providerName === "paystack") {
+    return createPaymentProvider(providerName, { ...common, apiKey: env.PAYSTACK_SECRET_KEY, webhookSecret: env.PAYSTACK_WEBHOOK_SECRET ?? env.PAYSTACK_SECRET_KEY });
+  }
+  return createPaymentProvider("mock", { mockPaymentsEnabled: asBoolean(env.MOCK_PAYMENTS_ENABLED, true) });
 }

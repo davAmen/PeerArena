@@ -8,7 +8,7 @@
 - [x] Financial amounts represented as integer minor units in the backend ledger and demo mutation paths.
 - [x] Double-entry balance assertion and deterministic shared-pool distribution.
 - [x] Idempotent mock collection and payout behavior with provider capability reporting.
-- [x] SeevPlus and Paystack fail-closed provider boundaries; no unverified network call.
+- [x] SeevPlus and Paystack sandbox adapters with exact-unit requests, idempotency and raw-body webhook verification; production/payout paths fail closed.
 - [x] Default-deny real-money activation gate.
 - [x] Local API sliding-window rate limiting with explicit `429` responses.
 - [x] Fail-closed Supabase Auth adapter with mock-fetch contract tests.
@@ -37,7 +37,7 @@
 - [ ] Email/password, Google OAuth, password recovery, email verification and MFA configured and exercised in an isolated Supabase project.
 - [ ] Migration applied to isolated development/staging Supabase projects and RLS tested with multiple roles.
 - [ ] Licensed sports-data provider selected, contracted and wired to a durable monitor/worker.
-- [ ] SeevPlus/Paystack sandbox credentials and webhook signature details supplied.
+- [ ] SeevPlus/Paystack sandbox credentials supplied and isolated sandbox transactions exercised against provider accounts.
 - [ ] Provider approval for the intended regulated model, collection, safeguarding and winner disbursement.
 - [ ] KYC, age, jurisdiction, AML, fraud, responsible-gambling and dispute procedures implemented.
 - [ ] Independent security review and restore/reconciliation drills completed.

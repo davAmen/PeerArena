@@ -14,12 +14,13 @@ async function readProjectFile(relativePath) {
   return readFile(path.join(projectRoot, relativePath), "utf8");
 }
 
-const [vercelText, gitignore, packageText, serverText, configText, securityEventsText, databaseText, databaseMigrationText, databaseProcedureMigrationText, databaseBootstrapText, worklogText] = await Promise.all([
+const [vercelText, gitignore, packageText, serverText, configText, paymentsText, securityEventsText, databaseText, databaseMigrationText, databaseProcedureMigrationText, databaseBootstrapText, worklogText] = await Promise.all([
   readProjectFile("vercel.json"),
   readProjectFile(".gitignore"),
   readProjectFile("package.json"),
   readProjectFile("server.mjs"),
   readProjectFile("src/backend/config.mjs"),
+  readProjectFile("src/backend/payments.mjs"),
   readProjectFile("src/backend/security-events.mjs"),
   readProjectFile("src/backend/database.mjs"),
   readProjectFile("database/migrations/0001_owned_postgres_hardening.sql"),
@@ -90,6 +91,10 @@ for (const requiredRoleMarker of ["no login", "nobypassrls", "statement_timeout"
 requireCondition(worklogText.includes("PeerArena engineering worklog"), "Versioned engineering worklog is missing");
 
 requireCondition(configText.includes("realMoneyEnabled: asBoolean(env.REAL_MONEY_ENABLED, false)"), "Real-money configuration must default to false");
+
+for (const requiredPaymentMarker of ["timingSafeEqual", "verifySeevWebhook", "verifyPaystackWebhook", "Idempotency-Key", "x-paystack-signature", "PAYMENT_PROVIDER_DISABLED", "PAYMENT_PAYOUT_DISABLED"]) {
+  requireCondition(paymentsText.includes(requiredPaymentMarker), `Payment security marker is missing: ${requiredPaymentMarker}`);
+}
 
 let trackedFiles = [];
 try {
