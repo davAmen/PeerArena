@@ -37,6 +37,7 @@ const challengeRepository = createChallengeRepositoryFromEnv();
 const profileRepository = createProfileRepositoryFromEnv();
 const apiRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 120, maxKeys: 10_000 });
 const mutationRateLimiter = new SlidingWindowRateLimiter({ windowMs: 60_000, maxRequests: 30, maxKeys: 10_000 });
+const trustProxyHeaders = process.env.TRUST_PROXY_HEADERS === "true";
 const securityEvents = new SecurityEventLogger({
   onEvent: (event) => console.warn(JSON.stringify({ securityEvent: event })),
   onAlert: (event) => console.error(JSON.stringify({ securityAlert: event }))
@@ -258,7 +259,7 @@ function demoDisabled(response, message = "This capability is disabled in the si
 
 function applyRateLimit(request, response, url) {
   const limiter = ["POST", "PATCH", "PUT", "DELETE"].includes(request.method) ? mutationRateLimiter : apiRateLimiter;
-  const decision = limiter.consume(`${requestAddress(request)}:${request.method}:${url.pathname}`);
+  const decision = limiter.consume(`${requestAddress(request, { trustForwardedFor: trustProxyHeaders })}:${request.method}:${url.pathname}`);
   if (decision.allowed) return true;
   securityEvents.record("RATE_LIMITED", {
     requestId: response.peerArenaRequestId,

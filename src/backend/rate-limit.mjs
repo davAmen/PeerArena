@@ -1,3 +1,5 @@
+import { isIP } from "node:net";
+
 export class SlidingWindowRateLimiter {
   constructor({ windowMs = 60_000, maxRequests = 60, maxKeys = 10_000, now = () => Date.now() } = {}) {
     if (!Number.isInteger(windowMs) || windowMs <= 0) throw new Error("windowMs must be a positive integer.");
@@ -49,8 +51,10 @@ export class SlidingWindowRateLimiter {
   }
 }
 
-export function requestAddress(request) {
+export function requestAddress(request, { trustForwardedFor = false } = {}) {
+  const remoteAddress = typeof request.socket?.remoteAddress === "string" ? request.socket.remoteAddress : "unknown";
+  if (!trustForwardedFor) return remoteAddress;
   const forwarded = request.headers?.["x-forwarded-for"];
   const firstForwarded = typeof forwarded === "string" ? forwarded.split(",")[0].trim() : "";
-  return firstForwarded || request.socket?.remoteAddress || "unknown";
+  return isIP(firstForwarded) ? firstForwarded : remoteAddress;
 }

@@ -31,7 +31,7 @@ import {
   verifySeevWebhook
 } from "../src/backend/payments.mjs";
 import { determineSettlement } from "../src/backend/settlement.mjs";
-import { SlidingWindowRateLimiter } from "../src/backend/rate-limit.mjs";
+import { SlidingWindowRateLimiter, requestAddress } from "../src/backend/rate-limit.mjs";
 import {
   AuthProviderError,
   DisabledAuthProvider,
@@ -431,6 +431,13 @@ test("rate limiter caps distinct keys and throttles overflow safely", () => {
   assert.equal(limiter.consume("client-3").allowed, false);
   assert.equal(limiter.consume("client-4").allowed, false);
   assert.ok(limiter.buckets.size <= 2);
+});
+
+test("rate limiter ignores spoofable forwarded identity by default", () => {
+  const request = { headers: { "x-forwarded-for": "198.51.100.20, 10.0.0.2" }, socket: { remoteAddress: "127.0.0.1" } };
+  assert.equal(requestAddress(request), "127.0.0.1");
+  assert.equal(requestAddress(request, { trustForwardedFor: true }), "198.51.100.20");
+  assert.equal(requestAddress({ ...request, headers: { "x-forwarded-for": "spoofed" } }, { trustForwardedFor: true }), "127.0.0.1");
 });
 
 test("Supabase Auth remains disabled when public project configuration is absent", () => {

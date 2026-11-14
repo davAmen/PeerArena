@@ -75,6 +75,7 @@ for (const requiredSourceMarker of [
   "X-Request-ID",
   "runtimeSecurity",
   "maxKeys",
+  "TRUST_PROXY_HEADERS",
   "ownedDatabaseReady",
   "PRODUCTION_AUTH_REQUIRED"
 ]) requireCondition(serverText.includes(requiredSourceMarker), `Server hardening marker is missing: ${requiredSourceMarker}`);
