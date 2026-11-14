@@ -3,9 +3,8 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("Vercel API adapter delegates to the hardened Node request handler", async () => {
-  const [server, adapter, router, packageText, vercelText, quickstart] = await Promise.all([
+  const [server, router, packageText, vercelText, quickstart] = await Promise.all([
     readFile(new URL("../server.mjs", import.meta.url), "utf8"),
-    readFile(new URL("../api/[...path].mjs", import.meta.url), "utf8"),
     readFile(new URL("../api/index.mjs", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../vercel.json", import.meta.url), "utf8"),
@@ -16,8 +15,8 @@ test("Vercel API adapter delegates to the hardened Node request handler", async 
   assert.match(server, /process\.env\.VERCEL !== "1"/);
   assert.match(server, /url\.pathname === "\/api\/readiness"/);
   assert.match(server, /PROTECTED_SYNTHETIC_PILOT/);
-  assert.match(adapter, /handleRequest\(request, response\)/);
-  assert.match(JSON.parse(packageText).scripts.check, /node --check api\/\[\.\.\.path\]\.mjs/);
+  assert.match(router, /handleRequest\(routedRequest\(request\), response\)/);
+  assert.match(JSON.parse(packageText).scripts.check, /node --check api\/index\.mjs/);
   assert.equal(vercel.outputDirectory, "dist");
   assert.equal(vercel.buildCommand, "npm run build:vercel");
   assert.deepEqual(vercel.rewrites, [

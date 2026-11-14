@@ -7,7 +7,7 @@
   "scripts": {
     "build": "node scripts/verify-build.mjs",
     "build:vercel": "node scripts/verify-build.mjs",
-    "check": "npm test && npm run check:env && node --check server.mjs && node --check api/[...path].mjs && node --check api/index.mjs && node --check src/demo-engine.mjs && node --check src/backend/admin.mjs && node --check src/backend/catalogue.mjs && node --check src/backend/challenges.mjs && node --check src/backend/config.mjs && node --check src/backend/database.mjs && node --check src/backend/owned-postgres.mjs && node --check src/backend/payments.mjs && node --check src/backend/security-events.mjs && node --check src/backend/settlement.mjs && node --check dist/app.js",
+    "check": "npm test && npm run check:env && node --check server.mjs && node --check api/index.mjs && node --check src/demo-engine.mjs && node --check src/backend/admin.mjs && node --check src/backend/catalogue.mjs && node --check src/backend/challenges.mjs && node --check src/backend/config.mjs && node --check src/backend/database.mjs && node --check src/backend/owned-postgres.mjs && node --check src/backend/payments.mjs && node --check src/backend/security-events.mjs && node --check src/backend/settlement.mjs && node --check dist/app.js",
     "check:env": "node scripts/validate-env.mjs",
     "security:check": "node scripts/security-check.mjs",
     "start": "node server.mjs",
