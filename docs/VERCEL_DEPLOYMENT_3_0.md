@@ -18,7 +18,7 @@ This repository is a working static frontend plus a local Node HTTP demo service
 
 The PeerArena demo is deployed at [https://peerarena.vercel.app](https://peerarena.vercel.app). Vercel authentication protection remains enabled, so anonymous visitors are not granted access. The same-origin demo API is now routed through `api/[...path].mjs`; it uses synthetic in-memory state only. No production database, first-party authentication, payment, payout or real-money path is connected.
 
-The latest production deployment is `dpl_5rX3aQwc6rTgdzFRo4uGvCxpGig6` and reported `READY`. Vercel's `vercel_authentication` protection was observed after deployment and was not changed.
+The latest production deployment is `dpl_E4wATUAUk5ZyAbHaVqV6J7S8qdNb` and reported `READY`. Vercel's `vercel_authentication` protection was observed after deployment and was not changed.
 
 ## Exact access/configuration needed
 

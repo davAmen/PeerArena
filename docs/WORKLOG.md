@@ -20,10 +20,11 @@ This is the durable project record for security, persistence, verification and r
 | 2026-11-13 | `78be3a2` | Added the first owned-PostgreSQL procedure boundary. | Narrow idempotent challenge creation with actor, market, self-exclusion, rule, expiry and audit checks; 39 tests pass. |
 | 2026-11-13 | `d21008b` | Added the owned-database role bootstrap contract. | No credentials in source control; runtime/procedure/reporting roles are non-login, non-superuser, non-bypass-RLS with bounded sessions; 40 tests pass. |
 | 2026-11-13 | `c49331d` | Connected the protected synthetic API to Vercel through `api/[...path].mjs`. | Production deployment `dpl_5rX3aQwc6rTgdzFRo4uGvCxpGig6` is READY; `/api/health` and `/api/state` smoke tests pass; real money and database remain disabled. |
+| 2026-11-14 | `c66b699` | Added a secret-free readiness endpoint and stranger-friendly protected-pilot walkthrough. | Deployment `dpl_E4wATUAUk5ZyAbHaVqV6J7S8qdNb` is READY; `/api/readiness` confirms active frontend/API and gated database/auth/payment capabilities. |
 
 ## Current database sovereignty milestone
 
-Committed as `f13e6c7`; procedure boundary added in `78be3a2`; role bootstrap added in `d21008b`; Vercel API adapter added in `c49331d`.
+Committed as `f13e6c7`; procedure boundary added in `78be3a2`; role bootstrap added in `d21008b`; Vercel API adapter added in `c49331d`; readiness surface added in `c66b699`.
 
 The production database target is now explicitly self-hosted PostgreSQL operated on a private, owner-controlled network. The application accepts only `owned-postgres` or `disabled` as database modes. Production readiness requires an exact host allowlist and `verify-full` TLS. The demo remains in-memory with synthetic, non-redeemable balances.
 
