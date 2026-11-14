@@ -30,7 +30,8 @@ export function readRuntimeConfig(env = process.env) {
 }
 
 export function realMoneyGate(config = readRuntimeConfig()) {
-  const blockers = [];
+  // Approval flags cannot substitute for production capabilities that do not exist.
+  const blockers = ["production payment processing, reconciliation and payouts are not implemented"];
   if (!config.realMoneyEnabled) blockers.push("REAL_MONEY_ENABLED is false");
   if (config.appEnv !== "production") blockers.push("APP_ENV is not production");
   if (config.productionAuthorization !== "VERIFIED") blockers.push("operational authorization is not verified");

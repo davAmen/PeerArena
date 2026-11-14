@@ -140,8 +140,9 @@ export class SupabaseAdminRepository {
   #apiKey;
   #keyType;
   #fetchImpl;
+  #timeoutMs;
 
-  constructor({ url, secretKey, serviceRoleKey, fetchImpl = globalThis.fetch } = {}) {
+  constructor({ url, secretKey, serviceRoleKey, fetchImpl = globalThis.fetch, timeoutMs = 10_000 } = {}) {
     this.#baseUrl = supabaseUrl(url);
     const key = secretKey ?? serviceRoleKey;
     if (typeof key !== "string" || key.trim() === "") {
@@ -153,6 +154,10 @@ export class SupabaseAdminRepository {
     this.#apiKey = key.trim();
     this.#keyType = secretKey ? "secret" : "legacy-service-role";
     this.#fetchImpl = fetchImpl;
+    if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30_000) {
+      throw new AdminRepositoryError("Request timeout must be between 1 and 30000 milliseconds.", { code: "ADMIN_INVALID_CONFIG", status: 500 });
+    }
+    this.#timeoutMs = timeoutMs;
   }
 
   getCapabilities() {
@@ -252,14 +257,19 @@ export class SupabaseAdminRepository {
     };
     if (this.#keyType === "legacy-service-role") headers.Authorization = `Bearer ${this.#apiKey}`;
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.#timeoutMs);
     let response;
+    let payload;
     try {
-      response = await this.#fetchImpl(`${this.#baseUrl}/rest/v1${path}`, { method, headers });
+      response = await this.#fetchImpl(`${this.#baseUrl}/rest/v1${path}`, { method, headers, signal: controller.signal });
+      payload = await responsePayload(response);
     } catch (error) {
       throw new AdminRepositoryError("Admin persistence service is unavailable.", { code: "PERSISTENCE_NETWORK_ERROR", status: 503, cause: error });
+    } finally {
+      clearTimeout(timer);
     }
 
-    const payload = await responsePayload(response);
     if (!response.ok) {
       throw new AdminRepositoryError("Admin persistence request was rejected.", {
         code: "PERSISTENCE_PROVIDER_REJECTED",

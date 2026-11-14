@@ -143,6 +143,7 @@ async function providerRequest({ fetchImpl, url, method = "GET", headers = {}, b
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   let response;
+  let payload;
   try {
     response = await fetchImpl(url, {
       method,
@@ -150,6 +151,7 @@ async function providerRequest({ fetchImpl, url, method = "GET", headers = {}, b
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       signal: controller.signal
     });
+    payload = await readPayload(response);
   } catch (error) {
     throw new PaymentProviderError("Payment provider is unavailable.", {
       code: error?.name === "AbortError" ? "PAYMENT_PROVIDER_TIMEOUT" : "PAYMENT_PROVIDER_UNAVAILABLE",
@@ -160,7 +162,6 @@ async function providerRequest({ fetchImpl, url, method = "GET", headers = {}, b
     clearTimeout(timer);
   }
 
-  const payload = await readPayload(response);
   if (!response.ok) {
     throw new PaymentProviderError("Payment provider rejected the request.", {
       code: "PAYMENT_PROVIDER_REJECTED",
@@ -245,6 +246,9 @@ class SandboxProvider {
     this.webhookSecret = typeof webhookSecret === "string" ? webhookSecret.trim() : "";
     this.fetchImpl = fetchImpl;
     this.now = now;
+    if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30_000) {
+      throw new PaymentProviderError("Payment timeout must be between 1 and 30000 milliseconds.", { code: "PAYMENT_INVALID_CONFIG", status: 500 });
+    }
     this.timeoutMs = timeoutMs;
     this.enabled = mode === "sandbox" && production !== true && realMoneyEnabled !== true && this.apiKey.length > 0;
   }

@@ -1,5 +1,13 @@
 # PeerArena engineering worklog
 
+## 2026-11-14 — Provider deadlines and accurate activation blockers
+
+- Added bounded HTTP deadlines to the profile, challenge, catalogue and admin Supabase repositories, including response-body consumption and safe 503 mapping.
+- Fixed SeevPlus/Paystack sandbox timers being cleared before response-body reads; validated timeout configuration and preserved signed-webhook, payout and production restrictions.
+- Fixed the real-money gate reporting readiness from approval flags despite missing production processing, reconciliation and payout implementations. The missing capability is now an explicit blocker.
+- Verification: 75 tests passed; environment/syntax checks, security baseline and build passed; production dependency audit reported zero vulnerabilities. Added 19 regression cases for stalled headers/bodies, invalid deadlines and approval-flag readiness.
+- No production activation, credential changes or deployment. Remaining work requires durable payment/reconciliation procedures, authenticated production infrastructure and verified external approvals.
+
 This is the durable project record for security, persistence, verification and release decisions. Each completed engineering milestone must add a dated entry with its commit, validation evidence and remaining blockers. The companion local memory store keeps a short searchable pointer; this file is the repository reference.
 
 ## Completed milestones

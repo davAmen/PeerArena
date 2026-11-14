@@ -175,8 +175,9 @@ export class SupabaseCatalogueRepository {
   #apiKey;
   #keyType;
   #fetchImpl;
+  #timeoutMs;
 
-  constructor({ url, publishableKey, anonKey, fetchImpl = globalThis.fetch } = {}) {
+  constructor({ url, publishableKey, anonKey, fetchImpl = globalThis.fetch, timeoutMs = 10_000 } = {}) {
     this.#baseUrl = supabaseUrl(url);
     const key = publishableKey ?? anonKey;
     if (typeof key !== "string" || key.trim() === "") {
@@ -188,6 +189,10 @@ export class SupabaseCatalogueRepository {
     this.#apiKey = key.trim();
     this.#keyType = publishableKey ? "publishable" : "legacy-anon";
     this.#fetchImpl = fetchImpl;
+    if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30_000) {
+      throw new CatalogueRepositoryError("Request timeout must be between 1 and 30000 milliseconds.", { code: "CATALOGUE_INVALID_CONFIG", status: 500 });
+    }
+    this.#timeoutMs = timeoutMs;
   }
 
   getCapabilities() {
@@ -226,17 +231,23 @@ export class SupabaseCatalogueRepository {
   }
 
   async #request(path) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.#timeoutMs);
     let response;
+    let payload;
     try {
       response = await this.#fetchImpl(`${this.#baseUrl}/rest/v1${path}`, {
         method: "GET",
+        signal: controller.signal,
         headers: { Accept: "application/json", apikey: this.#apiKey }
       });
+      payload = await responsePayload(response);
     } catch (error) {
       throw new CatalogueRepositoryError("Catalogue persistence service is unavailable.", { code: "PERSISTENCE_NETWORK_ERROR", status: 503, cause: error });
+    } finally {
+      clearTimeout(timer);
     }
 
-    const payload = await responsePayload(response);
     if (!response.ok) {
       throw new CatalogueRepositoryError("Catalogue persistence request was rejected.", {
         code: "PERSISTENCE_PROVIDER_REJECTED",

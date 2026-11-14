@@ -2,6 +2,8 @@
 
 ## Controls committed in the repository
 
+- Supabase profile, challenge, catalogue and admin HTTP requests have a 10-second deadline covering both headers and response bodies. Transport failures return sanitized 503 errors; timeout configuration cannot disable the deadline.
+
 - The Node service emits a fresh `X-Request-ID` for every response.
 - Production responses add HSTS; all environments use CSP, `object-src 'none'`, `form-action 'self'`, `frame-ancestors 'none'`, no-sniff, restrictive referrer and permissions policies, same-origin isolation headers, and `X-Robots-Tag: noindex, nofollow, noarchive` for the protected synthetic pilot.
 - Production and Vercel-hosted browser mutations reject an untrusted `Origin` and fail closed when `NEXT_PUBLIC_APP_URL` is missing or invalid.

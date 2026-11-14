@@ -2,6 +2,10 @@
 
 Status after the sandbox adapter milestone: real-money collection, customer-fund custody and payouts remain disabled.
 
+The activation gate explicitly reports that production payment processing, reconciliation and payouts are not implemented. Setting every approval flag cannot make this release report ready for real-money use. Completing those implementations and reviewing their evidence is a separate engineering prerequisite.
+
+Sandbox provider requests keep their deadline active through response-body consumption, including verification calls. Timeouts return a sanitized 503; an interrupted verification must not be treated as a confirmed payment or automatically retried as a new collection. Injected deadlines must be integers between 1 and 30,000 milliseconds.
+
 ## Current code boundary
 
 `src/backend/payments.mjs` provides three explicit provider choices:
