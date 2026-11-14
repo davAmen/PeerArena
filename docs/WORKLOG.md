@@ -21,6 +21,7 @@ This is the durable project record for security, persistence, verification and r
 | 2026-11-13 | `d21008b` | Added the owned-database role bootstrap contract. | No credentials in source control; runtime/procedure/reporting roles are non-login, non-superuser, non-bypass-RLS with bounded sessions; 40 tests pass. |
 | 2026-11-13 | `c49331d` | Connected the protected synthetic API to Vercel through `api/[...path].mjs`. | Production deployment `dpl_5rX3aQwc6rTgdzFRo4uGvCxpGig6` is READY; `/api/health` and `/api/state` smoke tests pass; real money and database remain disabled. |
 | 2026-11-14 | `c66b699` | Added a secret-free readiness endpoint and stranger-friendly protected-pilot walkthrough. | Deployment `dpl_E4wATUAUk5ZyAbHaVqV6J7S8qdNb` is READY; `/api/readiness` confirms active frontend/API and gated database/auth/payment capabilities. |
+| 2026-11-14 | `87bbb41` | Added verified SeevPlus and Paystack sandbox adapters and published the safe release. | 45 tests, build, security check, dependency audit and syntax checks pass; exact-unit requests, idempotency and raw-body HMAC verification are covered; deployment `dpl_2pcnoSB8pWvdboX3Qd7hLaH3TZek` is READY with `vercel_authentication`; live `/api/readiness` confirms payments/payouts disabled and real money blocked. |
 
 ## Current database sovereignty milestone
 

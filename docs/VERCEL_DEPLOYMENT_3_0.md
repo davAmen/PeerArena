@@ -8,7 +8,7 @@ This repository is a working static frontend plus a local Node HTTP demo service
 - `api/[...path].mjs` delegating same-origin `/api/*` requests to the hardened Node handler as a Vercel Function.
 - `scripts/verify-build.mjs` and `npm run check` for CI/build verification.
 - `supabase/migrations/0001_peerarena_foundation.sql` containing the PostgreSQL schema, constraints, indexes, trigger and RLS foundation.
-- server-side service modules for exact-unit ledger calculations, settlement and provider boundaries.
+- server-side service modules for exact-unit ledger calculations, settlement and provider boundaries, including explicitly gated SeevPlus and Paystack sandbox adapters.
 - a fail-closed Supabase Auth adapter with mock-fetch contract tests; it is not yet wired into protected routes.
 - a CI workflow at `.github/workflows/ci.yml`.
 
@@ -18,7 +18,7 @@ This repository is a working static frontend plus a local Node HTTP demo service
 
 The PeerArena demo is deployed at [https://peerarena.vercel.app](https://peerarena.vercel.app). Vercel authentication protection remains enabled, so anonymous visitors are not granted access. The same-origin demo API is now routed through `api/[...path].mjs`; it uses synthetic in-memory state only. No production database, first-party authentication, payment, payout or real-money path is connected.
 
-The latest production deployment is `dpl_E4wATUAUk5ZyAbHaVqV6J7S8qdNb` and reported `READY`. Vercel's `vercel_authentication` protection was observed after deployment and was not changed.
+The latest production deployment is `dpl_2pcnoSB8pWvdboX3Qd7hLaH3TZek` and reported `READY`. Vercel's `vercel_authentication` protection was observed after deployment and was not changed. The post-deployment `/api/readiness` smoke test confirmed `frontend=ACTIVE`, `api=ACTIVE`, `payments=DISABLED`, `payouts=DISABLED` and `realMoney=BLOCKED`.
 
 ## Exact access/configuration needed
 
@@ -27,7 +27,7 @@ The latest production deployment is `dpl_E4wATUAUk5ZyAbHaVqV6J7S8qdNb` and repor
 - Owner-operated PostgreSQL host, role provisioning, private-network routing, backup policy and an approved migration window. Follow `database/README.md`.
 - `AUTH_MODE=demo` for the default synthetic environment; first-party authentication is still required before durable accounts are enabled.
 - Approved sports-data provider contract and sandbox API key.
-- SeevPlus and/or Paystack sandbox account, test keys, webhook configuration and written approval for the intended business model.
+- SeevPlus and/or Paystack sandbox account, test keys, webhook configuration and written approval for the intended business model. The repository now contains tested adapter code, but no provider account or credential is connected to this Vercel project.
 - Security/compliance sign-off for identity, age, jurisdiction, AML, responsible-gambling, safeguarding and payout operations.
 
 ## Safe deployment sequence
