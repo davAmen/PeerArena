@@ -545,6 +545,44 @@ test("Supabase Auth adapter sanitizes provider errors and never includes credent
   });
 });
 
+for (const stage of ["headers", "body"]) {
+  test(`Supabase Auth aborts stalled ${stage} and fails session validation closed`, { timeout: 2_000 }, async () => {
+    let aborted = false;
+    const provider = new SupabaseAuthProvider({
+      url: "https://peerarena.supabase.co",
+      anonKey: "public-anon-key",
+      timeoutMs: 20,
+      fetchImpl: async (_url, { signal }) => {
+        const stall = () => new Promise((_resolve, reject) => {
+          signal.addEventListener("abort", () => {
+            aborted = true;
+            reject(new Error("upstream detail must stay private"));
+          }, { once: true });
+        });
+        return stage === "headers" ? stall() : { ok: true, text: stall };
+      }
+    });
+    await assert.rejects(
+      () => requireAuthenticatedSession({ request: { headers: { authorization: "Bearer token-123" } }, provider }),
+      (error) => {
+        assert.equal(error.code, "AUTH_UNAVAILABLE");
+        assert.equal(error.status, 503);
+        assert.equal(error.message, "Authentication service is unavailable.");
+        return true;
+      }
+    );
+    assert.equal(aborted, true);
+  });
+}
+
+test("Supabase Auth rejects disabled or unbounded request deadlines", () => {
+  for (const timeoutMs of [0, -1, 30_001, Infinity, NaN, "1000"]) {
+    assert.throws(() => new SupabaseAuthProvider({
+      url: "https://peerarena.supabase.co", anonKey: "public-anon-key", timeoutMs
+    }), { code: "AUTH_INVALID_CONFIG" });
+  }
+});
+
 test("session boundary accepts only a well-formed bearer token and supports optional sessions", async () => {
   assert.equal(extractBearerToken({ headers: { authorization: "Bearer token-123" } }), "token-123");
   assert.equal(extractBearerToken({ headers: { Authorization: "bearer token-456" } }), "token-456");

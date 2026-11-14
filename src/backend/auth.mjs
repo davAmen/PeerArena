@@ -96,11 +96,15 @@ async function responsePayload(response) {
 }
 
 export class SupabaseAuthProvider {
-  constructor({ url, anonKey, fetchImpl = globalThis.fetch, defaultRedirectUrl } = {}) {
+  constructor({ url, anonKey, fetchImpl = globalThis.fetch, defaultRedirectUrl, timeoutMs = 10_000 } = {}) {
     this.baseUrl = supabaseUrl(url);
     this.anonKey = requiredString(anonKey, "Supabase public key", { maxLength: 16_384 });
     if (typeof fetchImpl !== "function") throw new AuthProviderError("A fetch implementation is required.", { code: "AUTH_INVALID_CONFIG", status: 500 });
     this.fetchImpl = fetchImpl;
+    if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30_000) {
+      throw new AuthProviderError("Authentication timeout must be between 1 and 30000 milliseconds.", { code: "AUTH_INVALID_CONFIG", status: 500 });
+    }
+    this.timeoutMs = timeoutMs;
     this.defaultRedirectUrl = redirectUrl(defaultRedirectUrl, "Default redirect URL");
   }
 
@@ -160,22 +164,28 @@ export class SupabaseAuthProvider {
     if (rawAccessToken) headers.Authorization = `Bearer ${rawAccessToken}`;
     if (body !== undefined) headers["Content-Type"] = "application/json";
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     let response;
+    let payload;
     try {
       response = await this.fetchImpl(`${this.baseUrl}${path}`, {
         method,
         headers,
+        signal: controller.signal,
         ...(body === undefined ? {} : { body: JSON.stringify(body) })
       });
+      payload = await responsePayload(response);
     } catch (error) {
       throw new AuthProviderError("Authentication service is unavailable.", {
         code: "AUTH_NETWORK_ERROR",
         status: 503,
         cause: error
       });
+    } finally {
+      clearTimeout(timer);
     }
 
-    const payload = await responsePayload(response);
     if (!response.ok) {
       throw new AuthProviderError("Authentication request was rejected.", {
         code: "AUTH_PROVIDER_REJECTED",

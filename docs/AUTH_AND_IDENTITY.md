@@ -4,6 +4,8 @@
 
 ## Supabase Auth adapter boundary
 
+Auth HTTP requests have a 10-second deadline covering response headers and body consumption. A stalled or failed transport returns a sanitized 503 and cannot authenticate a session. The adapter's injectable timeout must be an integer between 1 and 30,000 milliseconds; it cannot disable the deadline.
+
 `SupabaseAuthProvider` uses the public Supabase project URL and publishable key (with a legacy anon-key fallback) to model the server-side Auth contract without adding a dependency or storing a local session. It supports:
 
 | Adapter method | Supabase Auth operation |
