@@ -8,7 +8,7 @@ The repository contains the existing PeerArena simulated-funds experience plus t
 
 The protected PeerArena demo was deployed to [peerarena.vercel.app](https://peerarena.vercel.app). Vercel authentication protection remains enabled, so anonymous visitors are not granted access. `dist` supplies the frontend and `api/[...path].mjs` exposes the synthetic `/api/*` contract through a Vercel Function; state is in-memory and resets across function instances.
 
-Latest verified production deployment: `dpl_AH7Y8XNFLF3mnKBn2UnN1hVdUJQX`, status `READY`, target `production`, with `vercel_authentication` protection. Inspector: [Vercel deployment](https://vercel.com/amenukudavid20-9818s-projects/peerarena/AH7Y8XNFLF3mnKBn2UnN1hVdUJQX).
+Latest verified production deployment: `dpl_MyTA7CdxwRMcY4UDJNtVcpko98Y3`, status `READY`, target `production`, with `vercel_authentication` protection. Inspector: [Vercel deployment](https://vercel.com/amenukudavid20-9818s-projects/peerarena/MyTA7CdxwRMcY4UDJNtVcpko98Y3).
 
 The protected pilot also exposes `GET /api/readiness`, a secret-free capability report for authorized visitors and operators. The live response confirms the frontend/API are active, while database/auth/payment/real-money capabilities remain gated. See `docs/STRANGER_QUICKSTART.md` for the shortest walkthrough.
 
