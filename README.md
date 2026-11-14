@@ -42,6 +42,7 @@ The admin route is a demonstration control surface only; it is not an authentica
 | `dist/styles.css` | Dark, responsive product UI |
 | `database/` | Self-hosted PostgreSQL hardening boundary and operator runbook |
 | `docs/WORKLOG.md` | Versioned engineering, security and persistence record |
+| `docs/STRANGER_QUICKSTART.md` | Short authorized visitor walkthrough and live capability status |
 | `supabase/migrations/0001_peerarena_foundation.sql` | Versioned PostgreSQL schema, constraints, indexes and RLS foundation |
 | `tests/*.test.mjs` | Lifecycle, exact-unit accounting, provider boundary and safety tests |
 | `docs/` | Feasibility, requirements, architecture, schema, API, security, operations and legal drafts |

@@ -17,6 +17,7 @@ Supabase-mode `/api/admin/*` reads require the server-controlled `admin` role an
 | Method | Route | Demo behavior |
 | --- | --- | --- |
 | GET | `/api/health` | Reports service health and the blocked real-money gate. |
+| GET | `/api/readiness` | Reports active, demo-only and blocked capability states without exposing secrets. |
 | GET | `/api/state` | Returns the full synthetic demo state. |
 | GET | `/api/sports` | Returns supported sports and markets. |
 | GET | `/api/events` | Returns synthetic events. |

@@ -96,6 +96,30 @@ function productionAuthEnabled() {
   return runtimeConfig.authMode === "supabase";
 }
 
+function readinessSnapshot() {
+  const authConfigured = authProvider.getCapabilities().configured === true;
+  return Object.freeze({
+    release: "PROTECTED_SYNTHETIC_PILOT",
+    frontend: "ACTIVE",
+    api: "ACTIVE",
+    access: "VERCEL_AUTHENTICATION_REQUIRED",
+    authentication: productionAuthEnabled() ? (authConfigured ? "ACTIVE" : "BLOCKED") : "DEMO_SESSION_ONLY",
+    database: runtimeConfig.ownedDatabaseReady ? "ACTIVE" : "DISABLED_DEMO_ONLY",
+    marketData: "SYNTHETIC_ONLY",
+    payments: "DISABLED",
+    payouts: "DISABLED",
+    realMoney: "BLOCKED",
+    nextProductionGates: Object.freeze([
+      "PRIVATE_POSTGRESQL_PROVISIONED",
+      "FIRST_PARTY_AUTHENTICATION_REVIEWED",
+      "ATOMIC_LEDGER_AND_SETTLEMENT_PROCEDURES",
+      "WAF_CENTRAL_ALERTING_AND_INCIDENT_OWNER",
+      "LICENSED_DATA_AND_PAYMENT_APPROVALS",
+      "INDEPENDENT_SECURITY_AND_COMPLIANCE_REVIEW"
+    ])
+  });
+}
+
 function assertProductionAuthConfigured() {
   if (!productionAuthEnabled()) return;
   if (!authProvider.getCapabilities().configured) {
@@ -248,6 +272,9 @@ async function handleApi(request, response, url) {
     enforceMutationOrigin(request);
     if (request.method === "GET" && url.pathname === "/api/health") {
       return sendJson(response, 200, { ok: true, demoMode: !productionAuthEnabled(), realMoneyEnabled: false, databaseProvider: runtimeConfig.databaseProvider, ownedDatabaseReady: runtimeConfig.ownedDatabaseReady, service: productionAuthEnabled() ? "peerarena-api" : "peerarena-demo" });
+    }
+    if (request.method === "GET" && url.pathname === "/api/readiness") {
+      return sendJson(response, 200, readinessSnapshot());
     }
     if (request.method === "GET" && url.pathname === "/api/state") {
       if (productionAuthEnabled()) return sendJson(response, 503, { error: "Synthetic demo state is disabled in Supabase mode.", code: "DEMO_STATE_DISABLED", productionAuth: "SUPABASE" });

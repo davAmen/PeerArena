@@ -10,6 +10,8 @@ The protected PeerArena demo was deployed to [peerarena.vercel.app](https://peer
 
 Latest verified production deployment: `dpl_5rX3aQwc6rTgdzFRo4uGvCxpGig6`, status `READY`, target `production`, with `vercel_authentication` protection. Inspector: [Vercel deployment](https://vercel.com/amenukudavid20-9818s-projects/peerarena/5rX3aQwc6rTgdzFRo4uGvCxpGig6).
 
+The protected pilot also exposes `GET /api/readiness`, a secret-free capability report for authorized visitors and operators. See `docs/STRANGER_QUICKSTART.md` for the shortest walkthrough.
+
 ## Database status
 
 The owner-operated PostgreSQL schema, hardening migration, role bootstrap and reviewed `create_challenge` procedure are present as source code. No production database has been provisioned or connected. RLS is forced, direct table access is denied, and authoritative finance procedures remain blocked.
