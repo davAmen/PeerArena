@@ -433,6 +433,33 @@ test("rate limiter caps distinct keys and throttles overflow safely", () => {
   assert.ok(limiter.buckets.size <= 2);
 });
 
+test("rate limiter reclaims expired capacity for distinct new clients", () => {
+  let now = 1_000;
+  const limiter = new SlidingWindowRateLimiter({ windowMs: 1_000, maxRequests: 1, maxKeys: 3, now: () => now });
+  for (const key of ["old-1", "old-2", "overflow"]) assert.equal(limiter.consume(key).allowed, true);
+  assert.equal(limiter.consume("blocked").allowed, false);
+  now += 1_000;
+  assert.equal(limiter.consume("new-1").allowed, true);
+  assert.equal(limiter.consume("new-2").allowed, true);
+  assert.equal(limiter.consume("new-1").allowed, false);
+  assert.ok(limiter.buckets.size <= 3);
+});
+
+test("rate limiter cleanup preserves unexpired client and overflow limits", () => {
+  let now = 1_000;
+  const limiter = new SlidingWindowRateLimiter({ windowMs: 1_000, maxRequests: 1, maxKeys: 3, now: () => now });
+  limiter.consume("old");
+  now = 1_500;
+  limiter.consume("active");
+  limiter.consume("overflow");
+  now = 2_000;
+  assert.equal(limiter.consume("active").allowed, false);
+  assert.equal(limiter.buckets.has("old"), false);
+  assert.equal(limiter.consume("new").allowed, false);
+  assert.equal(limiter.consume("another").allowed, false);
+  assert.ok(limiter.buckets.size <= 3);
+});
+
 test("rate limiter ignores spoofable forwarded identity by default", () => {
   const request = { headers: { "x-forwarded-for": "198.51.100.20, 10.0.0.2" }, socket: { remoteAddress: "127.0.0.1" } };
   assert.equal(requestAddress(request), "127.0.0.1");

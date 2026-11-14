@@ -10,11 +10,17 @@ export class SlidingWindowRateLimiter {
     this.maxKeys = maxKeys;
     this.now = now;
     this.buckets = new Map();
+    this.nextPruneAt = 0;
   }
 
   consume(key) {
     const requestedIdentifier = String(key || "anonymous");
     const currentTime = this.now();
+    // Sweep at most once per window, including in serverless handlers without timers.
+    if (currentTime >= this.nextPruneAt) {
+      this.prune();
+      this.nextPruneAt = currentTime + this.windowMs;
+    }
     const overflowIdentifier = "__peerarena_rate_limit_overflow__";
     const identifier = this.buckets.has(requestedIdentifier) || this.buckets.size < Math.max(0, this.maxKeys - 1)
       ? requestedIdentifier
