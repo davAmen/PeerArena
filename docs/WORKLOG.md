@@ -31,6 +31,12 @@ The owned PostgreSQL hardening layer revokes public privileges, enables and forc
 
 The earlier Supabase adapter remains compatibility code from the prototype and is not the owned deployment path. It must remain unconfigured for the owned architecture. First-party authentication and reviewed transactional procedures are still required before a self-hosted production API can be enabled.
 
+## 2026-11-14 launch-readiness audit
+
+Active and verified: protected Vercel frontend, same-origin synthetic API, health/state smoke tests, security headers, rate limiting, redacted telemetry, demo challenge lifecycle, synthetic ledger/settlement rules, owned-PostgreSQL migration artifacts, and automated checks.
+
+Still gated: private PostgreSQL provisioning, first-party authentication, durable profile/participant persistence, atomic reservation/acceptance, settlement/refund/reconciliation procedures, shared WAF/rate limiting, centralized alerting, licensed event data, payment/payout integrations, KYC/age/jurisdiction controls, independent security review and all real-money operation. These are external systems or approvals, not safe configuration toggles. The Vercel project remains protected and the demo gate remains blocked.
+
 ## Non-negotiable safety boundaries
 
 - Real-money operation, customer-fund custody, deposits, withdrawals, payouts and redeemable balances remain disabled.
