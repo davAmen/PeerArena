@@ -218,6 +218,14 @@ function recordSecurityFailure(request, response, url, error) {
   });
 }
 
+function runtimeSecurityReport() {
+  const recentEvents = securityEvents.snapshot(100);
+  return {
+    runtimeSecurity: securityEvents.summary(),
+    recentSecurityAlerts: recentEvents.filter((event) => ["CRITICAL", "HIGH"].includes(event.severity))
+  };
+}
+
 function challengeOperationBlocked(response, operation) {
   return sendJson(response, 503, {
     error: `${operation} requires a transactional server procedure and is not enabled yet.`,
@@ -380,8 +388,8 @@ async function handleApi(request, response, url) {
       return sendJson(response, 200, { settlements: state.challenges.filter((challenge) => challenge.settlement).map((challenge) => ({ challengeId: challenge.id, ...challenge.settlement })) });
     }
     if (request.method === "GET" && url.pathname === "/api/admin/security") {
-      if (productionAuthEnabled()) return sendJson(response, 200, { ...(await adminRepository.getSecurity()), runtimeSecurity: securityEvents.summary() });
-      return sendJson(response, 200, { realMoneyGate: "BLOCKED", authentication: "DEMO_SESSION_ONLY", suspiciousActivity: [], providerAnomalies: [], runtimeSecurity: securityEvents.summary() });
+      if (productionAuthEnabled()) return sendJson(response, 200, { ...(await adminRepository.getSecurity()), ...runtimeSecurityReport() });
+      return sendJson(response, 200, { realMoneyGate: "BLOCKED", authentication: "DEMO_SESSION_ONLY", suspiciousActivity: [], providerAnomalies: [], ...runtimeSecurityReport() });
     }
     if (request.method === "GET" && url.pathname === "/api/auth/session") {
       if (productionAuthEnabled()) {

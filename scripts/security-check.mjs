@@ -77,6 +77,7 @@ for (const requiredSourceMarker of [
   "Strict-Transport-Security",
   "X-Request-ID",
   "runtimeSecurity",
+  "recentSecurityAlerts",
   "maxKeys",
   "TRUST_PROXY_HEADERS",
   "ownedDatabaseReady",
