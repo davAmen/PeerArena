@@ -3,7 +3,13 @@ import { handleRequest } from "../server.mjs";
 const ROUTED_PATH_PARAM = "__peerarena_path";
 
 function routedRequest(request) {
-  const requestUrl = new URL(request.url ?? "/api/index", "http://peerarena.internal");
+  let requestUrl;
+  try {
+    requestUrl = new URL(request.url ?? "/api/index", "http://peerarena.internal");
+  } catch {
+    // Let the shared handler return its sanitized invalid-URL response.
+    return request;
+  }
   const routedPath = requestUrl.searchParams.get(ROUTED_PATH_PARAM);
   if (!routedPath || (!routedPath.startsWith("/api/") && routedPath !== "/api")) return request;
 

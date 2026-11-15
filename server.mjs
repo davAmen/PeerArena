@@ -611,7 +611,12 @@ async function serveStatic(request, response, url) {
 
 export async function handleRequest(request, response) {
   response.peerArenaRequestId = randomUUID();
-  const url = new URL(request.url ?? "/", "http://localhost");
+  let url;
+  try {
+    url = new URL(request.url ?? "/", "http://localhost");
+  } catch {
+    return sendError(response, 400, requestSecurityError("Invalid request URL.", "INVALID_PATH", 400));
+  }
   if (url.pathname.startsWith("/api/")) return handleApi(request, response, url);
   return serveStatic(request, response, url);
 }
