@@ -2,7 +2,7 @@
 
 Status after the sandbox adapter milestone: real-money collection, customer-fund custody and payouts remain disabled.
 
-The operator selected Paystack and confirmed Ghana as the operating country on 2026-11-14. See [the Paystack activation handoff](PAYSTACK_ACTIVATION.md) for completed verification controls, the read-only sandbox command and the outstanding implementation/access requirements. Runtime defaults remain mock until an isolated staging configuration is supplied.
+The operator selected SeevCash on 2026-11-16 and explicitly instructed us to avoid Paystack, superseding the earlier Paystack selection. Ghana remains the confirmed operating country. See [the SeevCash setup handoff](SEEVCASH_SETUP.md) for the existing adapter mapping and outstanding access requirements. Stop the Paystack account/key setup; runtime defaults remain mock until an isolated staging configuration is supplied.
 
 The activation gate explicitly reports that production payment processing, reconciliation and payouts are not implemented. Setting every approval flag cannot make this release report ready for real-money use. Completing those implementations and reviewing their evidence is a separate engineering prerequisite.
 
@@ -39,7 +39,7 @@ Use only a private local/staging environment, never production:
 ```text
 APP_ENV=staging
 PAYMENT_MODE=sandbox
-PAYMENT_PROVIDER=paystack        # or seevplus
+PAYMENT_PROVIDER=seevplus        # existing adapter identifier for SeevCash Checkout
 REAL_MONEY_ENABLED=false
 ```
 

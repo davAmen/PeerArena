@@ -1,5 +1,7 @@
 # Paystack activation handoff
 
+Historical reference only: on 2026-11-16 the operator replaced Paystack with SeevCash and instructed us to avoid Paystack. Do not continue the Paystack account, authenticator recovery or key setup for this project. Follow [SeevCash setup](SEEVCASH_SETUP.md) instead. The instructions below document the earlier implementation, not the current provider choice.
+
 The operator confirmed Paystack as the payment provider and Ghana (GH) as the operating country on 2026-11-14. Real-money activation is incomplete. The repository remains a protected synthetic pilot; this operating-country decision does not establish gaming authorization or provider approval.
 
 ## Completed and tested

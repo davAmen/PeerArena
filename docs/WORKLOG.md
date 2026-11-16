@@ -1,5 +1,11 @@
 # PeerArena engineering worklog
 
+## 2026-11-16 — SeevCash replaces Paystack
+
+- Operator explicitly requested SeevCash and avoiding Paystack. Updated current provider guidance and marked the Paystack handoff historical; no further Paystack account/key recovery for this project.
+- Added SEEVCASH_SETUP.md with existing `seevplus` adapter mapping, server-side key names and the requirement to confirm provider-side test isolation before any call.
+- Provider selection only: no secret saved, external account connected, deployment or financial gate changed. Runtime remains mock and synthetic-only.
+
 ## 2026-11-15 security watch: malformed request URLs
 
 Reproduced uncaught URL parsing failures in both Node and Vercel request entry points. Both now return a sanitized 400 `INVALID_PATH` response with security headers and request ID. Behavioral regressions cover malformed targets, response redaction and successful subsequent static requests. No financial or deployment settings changed; existing local-database setup work is preserved.
