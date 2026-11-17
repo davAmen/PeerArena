@@ -274,7 +274,8 @@ function demoDisabled(response, message = "This capability is disabled in the si
 
 function applyRateLimit(request, response, url) {
   const limiter = ["POST", "PATCH", "PUT", "DELETE"].includes(request.method) ? mutationRateLimiter : apiRateLimiter;
-  const decision = limiter.consume(`${requestAddress(request, { trustForwardedFor: trustProxyHeaders })}:${request.method}:${url.pathname}`);
+  // Share each client's allowance across routes and methods so URL variation cannot reset it.
+  const decision = limiter.consume(requestAddress(request, { trustForwardedFor: trustProxyHeaders }));
   if (decision.allowed) return true;
   securityEvents.record("RATE_LIMITED", {
     requestId: response.peerArenaRequestId,
