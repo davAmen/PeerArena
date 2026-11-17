@@ -8,6 +8,7 @@ npm-debug.log*
 supabase/.temp/
 database/backups/
 database/secrets/
+database/local/
 *.dump
 *.backup
 *.sql.gz
