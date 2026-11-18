@@ -79,17 +79,22 @@ async function check() {
     if (!tls) throw new Error("TLS is not active");
     const migrations = (await admin.query("select count(*)::int as n from peerarena_setup.migrations")).rows[0].n;
     if (migrations !== 6) throw new Error("Migrations are incomplete");
-    const unprotected = (await admin.query("select relname from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r' and (not c.relrowsecurity or not c.relforcerowsecurity)")).rows;
+    const tables = (await admin.query("select c.oid, c.relname, c.relrowsecurity, c.relforcerowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind='r'")).rows;
+    if (!tables.length) throw new Error("Protected public tables are missing");
+    const unprotected = tables.filter((table) => !table.relrowsecurity || !table.relforcerowsecurity);
     if (unprotected.length) throw new Error("Unprotected public tables");
     const app = connect("app");
     await app.connect();
     try {
       const role = (await app.query("select rolsuper, rolbypassrls from pg_roles where rolname=current_user")).rows[0];
       if (role.rolsuper || role.rolbypassrls) throw new Error("Runtime role has elevated privileges");
-      try { await app.query("select * from public.users"); throw new Error("Runtime read unexpectedly allowed"); }
-      catch (error) { if (error.code !== "42501") throw error; }
-      try { await app.query("delete from public.users"); throw new Error("Runtime write unexpectedly allowed"); }
-      catch (error) { if (error.code !== "42501") throw error; }
+      for (const table of tables) {
+        const access = await app.query(
+          "select has_table_privilege(current_user, $1::oid, 'select') or has_table_privilege(current_user, $1::oid, 'insert') or has_table_privilege(current_user, $1::oid, 'update') or has_table_privilege(current_user, $1::oid, 'delete') or has_table_privilege(current_user, $1::oid, 'truncate') or has_table_privilege(current_user, $1::oid, 'references') or has_table_privilege(current_user, $1::oid, 'trigger') as allowed",
+          [table.oid]
+        );
+        if (access.rows[0]?.allowed) throw new Error("Runtime role has direct table privileges");
+      }
       console.log(JSON.stringify({ ok: true, database: "peerarena_local", host: "127.0.0.1", port: 55432, tlsVerified: true, migrations, directRuntimeAccess: "DENIED", realMoney: "DISABLED" }));
     } finally { await app.end(); }
   } finally { await admin.end(); }
